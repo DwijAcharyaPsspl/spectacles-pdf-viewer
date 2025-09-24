@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectacles PDF Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #file-input {
+            margin-bottom: 10px;
+        }
+        
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        #pdf-canvas {
+            border: 1px solid #ccc;
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .page-info {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .zoom-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Viewer for Spectacles</h1>
+        
+        <input type="file" id="file-input" accept=".pdf" />
+        <div class="loading" id="loading" style="display: none;">Loading PDF...</div>
+        
+        <div class="controls">
+            <button id="prev-btn" disabled>Previous Page</button>
+            <button id="next-btn" disabled>Next Page</button>
+        </div>
+        
+        <div class="page-info">
+            <span id="page-num">0</span> / <span id="page-count">0</span>
+        </div>
+        
+        <div class="zoom-controls">
+            <button id="zoom-out">Zoom Out</button>
+            <button id="zoom-in">Zoom In</button>
+            <button id="fit-width">Fit Width</button>
+        </div>
+        
+        <div id="canvas-container">
+            <canvas id="pdf-canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js configuration
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        class PDFViewer {
+            constructor() {
+                this.pdfDoc = null;
+                this.pageNum = 1;
+                this.pageRendering = false;
+                this.pageNumPending = null;
+                this.scale = 1.5;
+                this.canvas = document.getElementById('pdf-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.initEventListeners();
+            }
+            
+            initEventListeners() {
+                // File input
+                document.getElementById('file-input').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file && file.type === 'application/pdf') {
+                        this.loadPDF(file);
+                    }
+                });
+                
+                // Navigation buttons
+                document.getElementById('prev-btn').addEventListener('click', () => {
+                    if (this.pageNum <= 1) return;
+                    this.pageNum--;
+                    this.queueRenderPage(this.pageNum);
+                });
+                
+                document.getElementById('next-btn').addEventListener('click', () => {
+                    if (this.pageNum >= this.pdfDoc.numPages) return;
+                    this.pageNum++;
+                    this.queueRenderPage(this.pageNum);
+                });
+                
+                // Zoom controls
+                document.getElementById('zoom-in').addEventListener('click', () => {
+                    this.scale *= 1.2;
+                    this.queueRenderPage(this.pageNum);
+                });
+                
+                document.getElementById('zoom-out').addEventListener('click', () => {
+                    this.scale /= 1.2;
+                    this.queueRenderPage(this.pageNum);
+                });
+                
+                document.getElementById('fit-width').addEventListener('click', () => {
+                    this.fitToWidth();
+                });
+                
+                // Keyboard navigation
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            document.getElementById('prev-btn').click();
+                            break;
+                        case 'ArrowRight':
+                            document.getElementById('next-btn').click();
+                            break;
+                        case '+':
+                            document.getElementById('zoom-in').click();
+                            break;
+                        case '-':
+                            document.getElementById('zoom-out').click();
+                            break;
+                    }
+                });
+            }
+            
+            async loadPDF(file) {
+                document.getElementById('loading').style.display = 'block';
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    this.pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    
+                    document.getElementById('page-count').textContent = this.pdfDoc.numPages;
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // Enable navigation buttons
+                    this.updateNavigationButtons();
+                    
+                    // Render first page
+                    this.renderPage(1);
+                    
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    document.getElementById('loading').textContent = 'Error loading PDF';
+                }
+            }
+            
+            renderPage(num) {
+                this.pageRendering = true;
+                
+                this.pdfDoc.getPage(num).then((page) => {
+                    const viewport = page.getViewport({ scale: this.scale });
+                    this.canvas.height = viewport.height;
+                    this.canvas.width = viewport.width;
+                    
+                    const renderContext = {
+                        canvasContext: this.ctx,
+                        viewport: viewport
+                    };
+                    
+                    const renderTask = page.render(renderContext);
+                    
+                    renderTask.promise.then(() => {
+                        this.pageRendering = false;
+                        if (this.pageNumPending !== null) {
+                            this.renderPage(this.pageNumPending);
+                            this.pageNumPending = null;
+                        }
+                    });
+                });
+                
+                // Update page counters
+                document.getElementById('page-num').textContent = num;
+                this.updateNavigationButtons();
+            }
+            
+            queueRenderPage(num) {
+                if (this.pageRendering) {
+                    this.pageNumPending = num;
+                } else {
+                    this.renderPage(num);
+                }
+            }
+            
+            updateNavigationButtons() {
+                document.getElementById('prev-btn').disabled = (this.pageNum <= 1);
+                document.getElementById('next-btn').disabled = (this.pageNum >= (this.pdfDoc?.numPages || 0));
+            }
+            
+            fitToWidth() {
+                if (!this.pdfDoc) return;
+                
+                this.pdfDoc.getPage(this.pageNum).then((page) => {
+                    const container = document.getElementById('canvas-container');
+                    const containerWidth = container.clientWidth - 40; // Account for padding
+                    const viewport = page.getViewport({ scale: 1 });
+                    
+                    this.scale = containerWidth / viewport.width;
+                    this.queueRenderPage(this.pageNum);
+                });
+            }
+        }
+        
+        // Initialize PDF viewer when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new PDFViewer();
+        });
+        
+        // Load default PDF if URL parameter is provided
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pdfUrl = urlParams.get('pdf');
+            
+            if (pdfUrl) {
+                fetch(pdfUrl)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const file = new File([blob], 'document.pdf', { type: 'application/pdf' });
+                        const viewer = new PDFViewer();
+                        viewer.loadPDF(file);
+                    })
+                    .catch(error => {
+                        console.error('Error loading PDF from URL:', error);
+                    });
+            }
+        });
+    </script>
+</body>
+</html>
