@@ -9,11 +9,9 @@
             margin: 0;
             padding: 0;
             background: #1a1a1a;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: Arial, sans-serif;
             overflow: hidden;
             transition: all 0.3s ease;
-            -webkit-user-select: none;
-            user-select: none;
         }
         
         /* Thumbnail view styles */
@@ -25,39 +23,36 @@
             height: 100vh;
             width: 100vw;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            position: relative;
         }
         
         #thumbnailCanvas {
-            max-width: 55%;
-            max-height: 55%;
-            border-radius: 12px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            max-width: 60%;
+            max-height: 60%;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             cursor: pointer;
-            transition: transform 0.4s ease;
+            transition: transform 0.3s ease;
             background: white;
-            border: 2px solid rgba(255,255,255,0.2);
         }
         
         #thumbnailCanvas:hover {
-            transform: scale(1.03);
+            transform: scale(1.05);
         }
         
         #thumbnailTitle {
             color: white;
-            font-size: 28px;
-            font-weight: 600;
-            margin-top: 25px;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             text-align: center;
         }
         
         #thumbnailSubtitle {
-            color: rgba(255,255,255,0.9);
-            font-size: 18px;
-            margin-top: 12px;
+            color: rgba(255,255,255,0.8);
+            font-size: 16px;
+            margin-top: 10px;
             text-align: center;
-            font-weight: 300;
         }
         
         /* Full view styles */
@@ -67,107 +62,79 @@
             height: 100vh;
             background: #000;
             position: relative;
-            overflow: hidden;
-        }
-        
-        #canvasContainer {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
         }
         
         #pdfCanvas {
-            max-width: 95%;
-            max-height: 90%;
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            max-height: 100vh;
             background: white;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
-            transition: transform 0.3s ease;
-            transform-origin: center center;
         }
         
         #controls {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(0,0,0,0.85);
-            padding: 12px;
-            border-radius: 12px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 8px;
             color: white;
             z-index: 1000;
             display: flex;
-            gap: 8px;
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.1);
+            gap: 10px;
+            backdrop-filter: blur(10px);
         }
         
         button {
-            padding: 10px 14px;
-            background: linear-gradient(135deg, #007acc, #005a99);
+            padding: 8px 12px;
+            background: #007acc;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,122,204,0.3);
+            font-size: 12px;
+            transition: background 0.3s ease;
         }
         
         button:hover {
-            background: linear-gradient(135deg, #005a99, #004080);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,122,204,0.4);
-        }
-        
-        button:active {
-            transform: translateY(0);
+            background: #005a99;
         }
         
         button:disabled {
             background: #333;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
         
         #pageInfo {
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.8);
             color: white;
-            padding: 12px 20px;
+            padding: 10px 15px;
             position: fixed;
-            bottom: 25px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            border-radius: 25px;
+            border-radius: 20px;
             font-size: 16px;
-            font-weight: 500;
             z-index: 1000;
-            backdrop-filter: blur(15px);
+            backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
-            gap: 18px;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            gap: 15px;
         }
         
         #gestureHints {
             position: fixed;
             top: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.8);
             color: white;
-            padding: 16px;
-            border-radius: 12px;
+            padding: 15px;
+            border-radius: 8px;
             font-size: 12px;
             z-index: 1000;
-            backdrop-filter: blur(15px);
-            line-height: 1.6;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            line-height: 1.4;
         }
         
         #loading {
@@ -176,80 +143,41 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             z-index: 2000;
-            background: rgba(0,0,0,0.9);
-            padding: 25px 35px;
-            border-radius: 15px;
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.1);
-            font-weight: 500;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
         }
         
         .gesture-indicator {
             display: inline-block;
-            background: linear-gradient(135deg, #007acc, #005a99);
+            background: #007acc;
             color: white;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            margin-right: 8px;
-            font-weight: 600;
-        }
-        
-        /* Zoom indicator */
-        #zoomIndicator {
-            position: fixed;
-            top: 50%;
-            left: 20px;
-            transform: translateY(-50%);
-            background: rgba(0,0,0,0.9);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            z-index: 1500;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        #zoomIndicator.show {
-            opacity: 1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-right: 5px;
         }
         
         /* Animations */
         .fade-in {
-            animation: fadeIn 0.6s ease-in-out;
+            animation: fadeIn 0.5s ease-in;
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-30px); }
+            from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
         .slide-up {
-            animation: slideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            animation: slideUp 0.3s ease-out;
         }
         
         @keyframes slideUp {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        /* Spectacles-optimized responsive design */
-        @media screen and (max-width: 1200px) {
-            #thumbnailCanvas {
-                max-width: 65%;
-                max-height: 65%;
-            }
-            
-            #pdfCanvas {
-                max-width: 98%;
-                max-height: 95%;
-            }
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
@@ -270,7 +198,7 @@
             <div><span class="gesture-indicator">👈</span>Swipe left: Next page</div>
             <div><span class="gesture-indicator">👉</span>Swipe right: Previous page</div>
             <div><span class="gesture-indicator">👆</span>Swipe up: Close view</div>
-            <div><span class="gesture-indicator">🤏</span>Two-hand pinch: Zoom</div>
+            <div><span class="gesture-indicator">👆</span>Tap: Toggle view</div>
         </div>
         
         <div id="controls">
@@ -278,22 +206,16 @@
             <button id="nextBtn">Next →</button>
             <button id="zoomInBtn">🔍+</button>
             <button id="zoomOutBtn">🔍-</button>
-            <button id="fitBtn">📐 Fit</button>
+            <button id="fitBtn">📏 Fit</button>
             <button id="closeBtn">✕ Close</button>
         </div>
         
-        <div id="canvasContainer">
-            <canvas id="pdfCanvas"></canvas>
-        </div>
+        <canvas id="pdfCanvas"></canvas>
         
         <div id="pageInfo">
             <span>Page <span id="pageNum">1</span> of <span id="totalPages">1</span></span>
             <span>•</span>
             <span id="zoomLevel">150%</span>
-        </div>
-        
-        <div id="zoomIndicator">
-            Zoom: <span id="zoomValue">100%</span>
         </div>
     </div>
 
@@ -306,8 +228,6 @@
         let pageNum = 1;
         let totalPages = 0;
         let scale = 1.5;
-        let baseScale = 1.5;
-        let currentZoom = 1.0;
         let canvas = null;
         let ctx = null;
         let thumbnailCanvas = null;
@@ -315,7 +235,6 @@
         let isRendering = false;
         let isFullView = false;
         let isInitialized = false;
-        let zoomIndicatorTimeout = null;
         
         // Get URL parameter for PDF file
         function getUrlParameter(name) {
@@ -328,7 +247,7 @@
         // Initialize PDF viewer
         async function initPDFViewer() {
             try {
-                console.log('=== INITIALIZING PDF VIEWER FOR SPECTACLES ===');
+                console.log('Initializing PDF viewer for Spectacles...');
                 
                 // Setup canvases
                 canvas = document.getElementById('pdfCanvas');
@@ -337,19 +256,15 @@
                 thumbnailCtx = thumbnailCanvas.getContext('2d');
                 
                 // Get PDF URL from parameter or use default
-                const pdfUrl = getUrlParameter('pdf') || 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
+                const pdfUrl = getUrlParameter('pdf') || 'https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf';
                 console.log('Loading PDF:', pdfUrl);
                 
-                // Load PDF document with better error handling
+                // Load PDF document
                 const loadingTask = pdfjsLib.getDocument({
                     url: pdfUrl,
+                    // Add CORS handling if needed
                     httpHeaders: {},
-                    withCredentials: false,
-                    // Add timeout and retry options
-                    maxImageSize: 1024 * 1024,
-                    disableFontFace: false,
-                    disableAutoFetch: false,
-                    disableStream: false
+                    withCredentials: false
                 });
                 
                 pdfDoc = await loadingTask.promise;
@@ -369,11 +284,11 @@
                 // Mark as initialized
                 isInitialized = true;
                 
-                console.log('✅ PDF loaded successfully:', totalPages, 'pages');
+                console.log('PDF loaded successfully:', totalPages, 'pages');
                 
             } catch (error) {
-                console.error('❌ Error loading PDF:', error);
-                document.getElementById('loading').innerHTML = '❌ Error loading PDF:<br>' + error.message;
+                console.error('Error loading PDF:', error);
+                document.getElementById('loading').innerHTML = 'Error loading PDF:<br>' + error.message;
             }
         }
         
@@ -383,12 +298,12 @@
                 const page = await pdfDoc.getPage(1);
                 const viewport = page.getViewport({ scale: 0.8 });
                 
-                // Calculate optimal thumbnail size for Spectacles display
-                const maxWidth = window.innerWidth * 0.55;
-                const maxHeight = window.innerHeight * 0.55;
+                // Set thumbnail canvas size
+                const maxWidth = window.innerWidth * 0.6;
+                const maxHeight = window.innerHeight * 0.6;
                 const scaleX = maxWidth / viewport.width;
                 const scaleY = maxHeight / viewport.height;
-                const thumbnailScale = Math.min(scaleX, scaleY) * 0.9;
+                const thumbnailScale = Math.min(scaleX, scaleY) * 0.8;
                 
                 const scaledViewport = page.getViewport({ scale: thumbnailScale });
                 
@@ -401,10 +316,10 @@
                 };
                 
                 await page.render(renderContext).promise;
-                console.log('📄 Thumbnail rendered');
+                console.log('Thumbnail rendered');
                 
             } catch (error) {
-                console.error('❌ Error rendering thumbnail:', error);
+                console.error('Error rendering thumbnail:', error);
             }
         }
         
@@ -415,10 +330,9 @@
             
             try {
                 const page = await pdfDoc.getPage(num);
-                const effectiveScale = baseScale * currentZoom;
-                const viewport = page.getViewport({ scale: effectiveScale });
+                const viewport = page.getViewport({ scale: scale });
                 
-                // Set canvas dimensions with device pixel ratio for crisp rendering
+                // Set canvas dimensions
                 const outputScale = window.devicePixelRatio || 1;
                 canvas.width = Math.floor(viewport.width * outputScale);
                 canvas.height = Math.floor(viewport.height * outputScale);
@@ -437,7 +351,7 @@
                 
                 // Update page info
                 document.getElementById('pageNum').textContent = num;
-                document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+                document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
                 updateButtonStates();
                 
                 // Update page info callback for Spectacles
@@ -445,10 +359,10 @@
                     window.updatePageInfo(num, totalPages);
                 }
                 
-                console.log('📄 Page rendered:', num, 'at zoom:', currentZoom);
+                console.log('Page rendered:', num);
                 
             } catch (error) {
-                console.error('❌ Error rendering page:', error);
+                console.error('Error rendering page:', error);
             } finally {
                 isRendering = false;
             }
@@ -456,7 +370,7 @@
         
         // Show thumbnail view
         function showThumbnailView() {
-            console.log('📷 Showing thumbnail view');
+            console.log('Showing thumbnail view');
             isFullView = false;
             document.getElementById('fullView').style.display = 'none';
             document.getElementById('thumbnailView').style.display = 'flex';
@@ -465,16 +379,16 @@
         
         // Show full view
         function showFullView() {
-            console.log('📖 Showing full view');
+            console.log('Showing full view');
             isFullView = true;
             document.getElementById('thumbnailView').style.display = 'none';
             document.getElementById('fullView').style.display = 'block';
             document.getElementById('fullView').classList.add('slide-up');
             
-            // Render current page with slight delay for smooth transition
+            // Render current page
             setTimeout(() => {
                 renderPage(pageNum);
-            }, 150);
+            }, 100);
         }
         
         // Navigation functions
@@ -482,7 +396,7 @@
             if (pageNum < totalPages) {
                 pageNum++;
                 await renderPage(pageNum);
-                console.log('➡️ Next page:', pageNum);
+                console.log('Next page:', pageNum);
             }
         }
         
@@ -490,72 +404,34 @@
             if (pageNum > 1) {
                 pageNum--;
                 await renderPage(pageNum);
-                console.log('⬅️ Previous page:', pageNum);
+                console.log('Previous page:', pageNum);
             }
         }
         
-        // Enhanced zoom functions
+        // Zoom functions
         async function zoomIn() {
-            currentZoom = Math.min(currentZoom * 1.25, 3.0);
+            scale = Math.min(scale * 1.25, 4.0);
             await renderPage(pageNum);
-            showZoomIndicator();
         }
         
         async function zoomOut() {
-            currentZoom = Math.max(currentZoom / 1.25, 0.3);
+            scale = Math.max(scale / 1.25, 0.5);
             await renderPage(pageNum);
-            showZoomIndicator();
-        }
-        
-        async function setZoom(zoomLevel) {
-            currentZoom = Math.max(0.3, Math.min(3.0, zoomLevel));
-            await renderPage(pageNum);
-            showZoomIndicator();
-            console.log('🔍 Zoom set to:', Math.round(currentZoom * 100) + '%');
         }
         
         async function fitToScreen() {
             if (!pdfDoc) return;
             
-            try {
-                const containerWidth = window.innerWidth * 0.95;
-                const containerHeight = window.innerHeight * 0.85;
-                const page = await pdfDoc.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1 });
-                
-                const scaleX = containerWidth / viewport.width;
-                const scaleY = containerHeight / viewport.height;
-                const optimalScale = Math.min(scaleX, scaleY);
-                
-                baseScale = optimalScale;
-                currentZoom = 1.0;
-                
-                await renderPage(pageNum);
-                showZoomIndicator();
-                console.log('📐 Fitted to screen, base scale:', baseScale.toFixed(2));
-                
-            } catch (error) {
-                console.error('❌ Fit to screen error:', error);
-            }
-        }
-        
-        // Show zoom level indicator
-        function showZoomIndicator() {
-            const indicator = document.getElementById('zoomIndicator');
-            const zoomValue = document.getElementById('zoomValue');
+            const containerWidth = window.innerWidth - 40;
+            const containerHeight = window.innerHeight - 100; // Account for controls
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1 });
             
-            zoomValue.textContent = Math.round(currentZoom * 100) + '%';
-            indicator.classList.add('show');
+            const scaleX = containerWidth / viewport.width;
+            const scaleY = containerHeight / viewport.height;
+            scale = Math.min(scaleX, scaleY);
             
-            // Clear existing timeout
-            if (zoomIndicatorTimeout) {
-                clearTimeout(zoomIndicatorTimeout);
-            }
-            
-            // Hide after 1.5 seconds
-            zoomIndicatorTimeout = setTimeout(() => {
-                indicator.classList.remove('show');
-            }, 1500);
+            await renderPage(pageNum);
         }
         
         // Update button states
@@ -576,7 +452,7 @@
             // Thumbnail click
             document.getElementById('thumbnailCanvas').addEventListener('click', showFullView);
             
-            // Enhanced keyboard shortcuts
+            // Keyboard shortcuts
             document.addEventListener('keydown', function(e) {
                 if (!isFullView) return;
                 
@@ -600,10 +476,6 @@
                         e.preventDefault();
                         zoomOut();
                         break;
-                    case '0':
-                        e.preventDefault();
-                        fitToScreen();
-                        break;
                     case 'Escape':
                         e.preventDefault();
                         showThumbnailView();
@@ -612,70 +484,50 @@
             });
         }
         
-        // Enhanced Spectacles Integration API
+        // Spectacles Integration API
         window.spectaclesPDF = {
-            // Core initialization
+            // Initialize the PDF viewer
             initialize: function() {
-                console.log('🎯 Spectacles PDF initialized');
+                console.log('Spectacles PDF initialized');
                 return isInitialized;
             },
             
-            // View management
+            // Show thumbnail view
             showThumbnail: function() {
                 showThumbnailView();
-                return true;
             },
             
+            // Open full view
             openFullView: function() {
                 showFullView();
-                return true;
             },
             
-            // Navigation
-            nextPage: async function() {
-                await nextPage();
-                return pageNum;
-            },
-            
-            previousPage: async function() {
-                await previousPage();
-                return pageNum;
-            },
-            
-            goToPage: async function(page) {
-                if (page >= 1 && page <= totalPages) {
-                    pageNum = page;
-                    await renderPage(pageNum);
-                    return pageNum;
-                }
-                return false;
-            },
-            
-            // Enhanced zoom controls
-            zoomIn: async function() {
-                await zoomIn();
-                return currentZoom;
-            },
-            
-            zoomOut: async function() {
-                await zoomOut();
-                return currentZoom;
-            },
-            
-            setZoom: async function(zoomLevel) {
-                await setZoom(zoomLevel);
-                return currentZoom;
-            },
-            
-            fitToScreen: async function() {
-                await fitToScreen();
-                return currentZoom;
+            // Fit to screen
+            fitToScreen: function() {
+                return fitToScreen();
             },
             
             // Legacy compatibility
-            fitWidth: async function() {
-                await fitToScreen();
-                return currentZoom;
+            fitWidth: function() {
+                return fitToScreen();
+            },
+            
+            // Navigation
+            nextPage: function() {
+                return nextPage();
+            },
+            
+            previousPage: function() {
+                return previousPage();
+            },
+            
+            // Zoom controls
+            zoomIn: function() {
+                return zoomIn();
+            },
+            
+            zoomOut: function() {
+                return zoomOut();
             },
             
             // Getters
@@ -687,12 +539,8 @@
                 return totalPages;
             },
             
-            getZoom: function() {
-                return currentZoom;
-            },
-            
             getScale: function() {
-                return baseScale * currentZoom;
+                return scale;
             },
             
             isFullView: function() {
@@ -703,63 +551,50 @@
                 return isInitialized;
             },
             
-            // State information
-            getState: function() {
-                return {
-                    currentPage: pageNum,
-                    totalPages: totalPages,
-                    zoom: currentZoom,
-                    baseScale: baseScale,
-                    isFullView: isFullView,
-                    isInitialized: isInitialized
-                };
-            }
+            // Properties for external access
+            currentPage: pageNum,
+            totalPages: totalPages
         };
+        
+        // Update properties when they change
+        function updateSpectaclesAPI() {
+            if (window.spectaclesPDF) {
+                window.spectaclesPDF.currentPage = pageNum;
+                window.spectaclesPDF.totalPages = totalPages;
+            }
+        }
         
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DOM loaded, initializing PDF viewer...');
+            console.log('DOM loaded, initializing PDF viewer...');
             initPDFViewer();
         });
         
-        // Enhanced debugging interface
+        // Expose for debugging
         window.debug = {
             showThumbnail: showThumbnailView,
             showFull: showFullView,
             nextPage: nextPage,
             prevPage: previousPage,
-            zoomIn: zoomIn,
-            zoomOut: zoomOut,
-            setZoom: setZoom,
             getCurrentState: () => ({
                 isFullView,
                 isInitialized,
                 pageNum,
                 totalPages,
-                currentZoom,
-                baseScale,
-                effectiveScale: baseScale * currentZoom
-            }),
-            testGestures: () => {
-                console.log('🎮 Testing gesture API...');
-                console.log('Available methods:', Object.keys(window.spectaclesPDF));
-                return window.spectaclesPDF.getState();
-            }
+                scale
+            })
         };
         
-        // Handle visibility changes for performance
+        // Handle visibility changes
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                console.log('📱 Page hidden - pausing renders');
+                console.log('Page hidden');
             } else {
-                console.log('📱 Page visible - resuming');
-                if (isFullView && !isRendering) {
-                    renderPage(pageNum);
-                }
+                console.log('Page visible');
             }
         });
         
-        console.log('✅ SPECTACLES PDF VIEWER SCRIPT LOADED');
+        console.log('Spectacles PDF Viewer script loaded');
     </script>
 </body>
 </html>
