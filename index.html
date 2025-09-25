@@ -179,6 +179,35 @@
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
+
+    #fullView {
+        display: none;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
+        position: relative;
+        overflow: auto; /* Enable scrolling */
+        touch-action: auto; /* Enable all touch gestures */
+    }
+
+    #pdfCanvas {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        max-height: 100vh;
+        touch-action: auto; /* Enable touch gestures */
+        user-select: none;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: #1a1a1a;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        touch-action: manipulation; /* Allow pinch-zoom and scroll */
+    }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
@@ -376,6 +405,51 @@
             document.getElementById('thumbnailView').style.display = 'flex';
             document.getElementById('thumbnailView').classList.add('fade-in');
         }
+
+        // Add this to your index.html script section
+function enableSpectaclesTouch() {
+    // Prevent default touch behaviors that conflict with Spectacles
+    document.addEventListener('touchstart', function(e) {
+        // Allow touch to propagate to Spectacles
+        e.stopPropagation();
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', function(e) {
+        // Enable scrolling and zooming
+        e.stopPropagation();
+    }, { passive: true });
+    
+    document.addEventListener('touchend', function(e) {
+        e.stopPropagation();
+    }, { passive: true });
+    
+    // Enable proper gesture handling for PDF canvas
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    if (pdfCanvas) {
+        pdfCanvas.style.touchAction = 'auto';
+        pdfCanvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            scale = Math.max(0.5, Math.min(4.0, scale + delta));
+            renderPage(pageNum);
+        });
+    }
+}
+
+// Call this when PDF opens
+function showFullView() {
+    console.log('Showing full view');
+    isFullView = true;
+    document.getElementById('thumbnailView').style.display = 'none';
+    document.getElementById('fullView').style.display = 'block';
+    document.getElementById('fullView').classList.add('slide-up');
+    
+    // Enable touch handling
+    enableSpectaclesTouch();
+    
+    setTimeout(() => renderPage(pageNum), 100);
+}
+
         
         // Show full view
         function showFullView() {
