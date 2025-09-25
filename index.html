@@ -1,390 +1,600 @@
-// PDFViewerController.js - Enhanced Version for Spectacles with Hand Gestures
-
-// @input SceneObject webViewObject {"hint":"Assign your PDF_Viewer_Screen object"}
-// @input SceneObject handTrackingObject {"hint":"Assign HandTracking object or Camera"}
-// @input bool debugMode = true
-// @input float clickThreshold = 0.1 {"hint":"Distance threshold for click detection"}
-// @input float swipeThreshold = 0.3 {"hint":"Distance threshold for swipe detection"}
-
-var webView = null;
-var handTracking = null;
-var isInitialized = false;
-var isPDFOpen = false;
-
-// Hand gesture tracking variables
-var lastHandPosition = null;
-var isTracking = false;
-var gestureStartPosition = null;
-var gestureStartTime = 0;
-var lastGestureTime = 0;
-var minGestureInterval = 1000; // 1 second between gestures
-
-// PDF state
-var currentPage = 1;
-var totalPages = 1;
-
-function initialize() {
-    print("=== Enhanced PDF Viewer Starting ===");
-    
-    if (!script.webViewObject) {
-        print("ERROR: Web View Object not assigned!");
-        return;
-    }
-    
-    // Setup hand tracking
-    setupHandTracking();
-    
-    // Initialize WebView with delay
-    var initDelay = script.createEvent("DelayedCallbackEvent");
-    initDelay.bind(function() {
-        findAndSetupWebView();
-    });
-    initDelay.reset(2.0);
-}
-
-function setupHandTracking() {
-    print("Setting up hand tracking...");
-    
-    // Try to find hand tracking component
-    if (script.handTrackingObject) {
-        var handTrackingComponents = script.handTrackingObject.getComponents("Component.HandTracking");
-        if (handTrackingComponents.length > 0) {
-            handTracking = handTrackingComponents[0];
-            print("Found HandTracking component");
-        } else {
-            print("HandTracking component not found, creating update event for manual tracking");
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectacles PDF Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            transition: all 0.3s ease;
         }
-    }
-    
-    // Setup update event for hand tracking
-    var updateEvent = script.createEvent("UpdateEvent");
-    updateEvent.bind(onUpdate);
-}
-
-function findAndSetupWebView() {
-    print("Looking for WebView component...");
-    
-    var scripts = script.webViewObject.getComponents("Component.ScriptComponent");
-    
-    for (var i = 0; i < scripts.length; i++) {
-        var component = scripts[i];
-        if (component === script) continue;
         
-        webView = component;
-        print("Found WebView component!");
-        break;
-    }
-    
-    if (!webView) {
-        print("ERROR: No WebView component found");
-        return;
-    }
-    
-    checkWebViewReady();
-}
-
-function checkWebViewReady() {
-    var checkCount = 0;
-    var readyCheck = script.createEvent("UpdateEvent");
-    
-    readyCheck.bind(function() {
-        checkCount++;
-        
-        if (checkCount > 150 || isInitialized) { // 5 seconds at 30fps
-            readyCheck.enabled = false;
-            
-            if (!isInitialized) {
-                isInitialized = true;
-                print("WebView ready - setting up PDF");
-                setupPDF();
-            }
+        /* Thumbnail view styles */
+        #thumbnailView {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-    });
-}
-
-function setupPDF() {
-    print("Setting up PDF viewer...");
-    
-    if (webView && webView.executeJavaScript) {
-        // Initialize the PDF viewer in closed state
-        executeJS("document.body.style.display = 'none';");
         
-        // Setup PDF viewer after page loads
-        var pdfSetup = script.createEvent("DelayedCallbackEvent");
-        pdfSetup.bind(function() {
-            executeJS(`
-                // Wait for PDF to be fully loaded
-                var checkReady = setInterval(function() {
-                    if (window.spectaclesPDF && window.spectaclesPDF.isInitialized && window.spectaclesPDF.isInitialized()) {
-                        clearInterval(checkReady);
-                        console.log('PDF viewer ready for Spectacles');
-                        
-                        // Setup page info callback
-                        window.updatePageInfo = function(current, total) {
-                            console.log('Page info updated:', current, '/', total);
-                        };
-                    }
-                }, 100);
+        #thumbnailCanvas {
+            max-width: 60%;
+            max-height: 60%;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            background: white;
+        }
+        
+        #thumbnailCanvas:hover {
+            transform: scale(1.05);
+        }
+        
+        #thumbnailTitle {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        
+        #thumbnailSubtitle {
+            color: rgba(255,255,255,0.8);
+            font-size: 16px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        /* Full view styles */
+        #fullView {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            position: relative;
+        }
+        
+        #pdfCanvas {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            max-height: 100vh;
+            background: white;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        button {
+            padding: 8px 12px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+        
+        button:hover {
+            background: #005a99;
+        }
+        
+        button:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
+        
+        #pageInfo {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 15px;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 20px;
+            font-size: 16px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        #gestureHints {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            line-height: 1.4;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 2000;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .gesture-indicator {
+            display: inline-block;
+            background: #007acc;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-right: 5px;
+        }
+        
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+</head>
+<body>
+    <div id="loading">Loading PDF...</div>
+    
+    <!-- Thumbnail View -->
+    <div id="thumbnailView">
+        <canvas id="thumbnailCanvas"></canvas>
+        <div id="thumbnailTitle">PDF Document</div>
+        <div id="thumbnailSubtitle">👆 Tap to open • 📄 <span id="totalPagesThumb">0</span> pages</div>
+    </div>
+    
+    <!-- Full View -->
+    <div id="fullView">
+        <div id="gestureHints">
+            <div><span class="gesture-indicator">👈</span>Swipe left: Next page</div>
+            <div><span class="gesture-indicator">👉</span>Swipe right: Previous page</div>
+            <div><span class="gesture-indicator">👆</span>Swipe up: Close view</div>
+            <div><span class="gesture-indicator">👆</span>Tap: Toggle view</div>
+        </div>
+        
+        <div id="controls">
+            <button id="prevBtn">← Prev</button>
+            <button id="nextBtn">Next →</button>
+            <button id="zoomInBtn">🔍+</button>
+            <button id="zoomOutBtn">🔍-</button>
+            <button id="fitBtn">📏 Fit</button>
+            <button id="closeBtn">✕ Close</button>
+        </div>
+        
+        <canvas id="pdfCanvas"></canvas>
+        
+        <div id="pageInfo">
+            <span>Page <span id="pageNum">1</span> of <span id="totalPages">1</span></span>
+            <span>•</span>
+            <span id="zoomLevel">150%</span>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js Configuration
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+        
+        // Global variables
+        let pdfDoc = null;
+        let pageNum = 1;
+        let totalPages = 0;
+        let scale = 1.5;
+        let canvas = null;
+        let ctx = null;
+        let thumbnailCanvas = null;
+        let thumbnailCtx = null;
+        let isRendering = false;
+        let isFullView = false;
+        let isInitialized = false;
+        
+        // Get URL parameter for PDF file
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+        
+        // Initialize PDF viewer
+        async function initPDFViewer() {
+            try {
+                console.log('Initializing PDF viewer for Spectacles...');
                 
-                // Timeout after 10 seconds
-                setTimeout(function() {
-                    if (checkReady) clearInterval(checkReady);
-                }, 10000);
-            `);
+                // Setup canvases
+                canvas = document.getElementById('pdfCanvas');
+                ctx = canvas.getContext('2d');
+                thumbnailCanvas = document.getElementById('thumbnailCanvas');
+                thumbnailCtx = thumbnailCanvas.getContext('2d');
+                
+                // Get PDF URL from parameter or use default
+                const pdfUrl = getUrlParameter('pdf') || 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
+                console.log('Loading PDF:', pdfUrl);
+                
+                // Load PDF document
+                const loadingTask = pdfjsLib.getDocument({
+                    url: pdfUrl,
+                    // Add CORS handling if needed
+                    httpHeaders: {},
+                    withCredentials: false
+                });
+                
+                pdfDoc = await loadingTask.promise;
+                totalPages = pdfDoc.numPages;
+                
+                // Update UI
+                document.getElementById('totalPages').textContent = totalPages;
+                document.getElementById('totalPagesThumb').textContent = totalPages;
+                document.getElementById('loading').style.display = 'none';
+                
+                // Render thumbnail
+                await renderThumbnail();
+                
+                // Setup controls
+                setupControls();
+                
+                // Mark as initialized
+                isInitialized = true;
+                
+                console.log('PDF loaded successfully:', totalPages, 'pages');
+                
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                document.getElementById('loading').innerHTML = 'Error loading PDF:<br>' + error.message;
+            }
+        }
+        
+        // Render thumbnail view
+        async function renderThumbnail() {
+            try {
+                const page = await pdfDoc.getPage(1);
+                const viewport = page.getViewport({ scale: 0.8 });
+                
+                // Set thumbnail canvas size
+                const maxWidth = window.innerWidth * 0.6;
+                const maxHeight = window.innerHeight * 0.6;
+                const scaleX = maxWidth / viewport.width;
+                const scaleY = maxHeight / viewport.height;
+                const thumbnailScale = Math.min(scaleX, scaleY) * 0.8;
+                
+                const scaledViewport = page.getViewport({ scale: thumbnailScale });
+                
+                thumbnailCanvas.width = scaledViewport.width;
+                thumbnailCanvas.height = scaledViewport.height;
+                
+                const renderContext = {
+                    canvasContext: thumbnailCtx,
+                    viewport: scaledViewport
+                };
+                
+                await page.render(renderContext).promise;
+                console.log('Thumbnail rendered');
+                
+            } catch (error) {
+                console.error('Error rendering thumbnail:', error);
+            }
+        }
+        
+        // Render specific page in full view
+        async function renderPage(num) {
+            if (isRendering || !isFullView) return;
+            isRendering = true;
             
-            // Show thumbnail after setup
-            var showThumbDelay = script.createEvent("DelayedCallbackEvent");
-            showThumbDelay.bind(function() {
-                showPDFThumbnail();
+            try {
+                const page = await pdfDoc.getPage(num);
+                const viewport = page.getViewport({ scale: scale });
+                
+                // Set canvas dimensions
+                const outputScale = window.devicePixelRatio || 1;
+                canvas.width = Math.floor(viewport.width * outputScale);
+                canvas.height = Math.floor(viewport.height * outputScale);
+                canvas.style.width = Math.floor(viewport.width) + 'px';
+                canvas.style.height = Math.floor(viewport.height) + 'px';
+                
+                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+                
+                const renderContext = {
+                    canvasContext: ctx,
+                    transform: transform,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                
+                // Update page info
+                document.getElementById('pageNum').textContent = num;
+                document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+                updateButtonStates();
+                
+                // Update page info callback for Spectacles
+                if (window.updatePageInfo) {
+                    window.updatePageInfo(num, totalPages);
+                }
+                
+                console.log('Page rendered:', num);
+                
+            } catch (error) {
+                console.error('Error rendering page:', error);
+            } finally {
+                isRendering = false;
+            }
+        }
+        
+        // Show thumbnail view
+        function showThumbnailView() {
+            console.log('Showing thumbnail view');
+            isFullView = false;
+            document.getElementById('fullView').style.display = 'none';
+            document.getElementById('thumbnailView').style.display = 'flex';
+            document.getElementById('thumbnailView').classList.add('fade-in');
+        }
+        
+        // Show full view
+        function showFullView() {
+            console.log('Showing full view');
+            isFullView = true;
+            document.getElementById('thumbnailView').style.display = 'none';
+            document.getElementById('fullView').style.display = 'block';
+            document.getElementById('fullView').classList.add('slide-up');
+            
+            // Render current page
+            setTimeout(() => {
+                renderPage(pageNum);
+            }, 100);
+        }
+        
+        // Navigation functions
+        async function nextPage() {
+            if (pageNum < totalPages) {
+                pageNum++;
+                await renderPage(pageNum);
+                console.log('Next page:', pageNum);
+            }
+        }
+        
+        async function previousPage() {
+            if (pageNum > 1) {
+                pageNum--;
+                await renderPage(pageNum);
+                console.log('Previous page:', pageNum);
+            }
+        }
+        
+        // Zoom functions
+        async function zoomIn() {
+            scale = Math.min(scale * 1.25, 4.0);
+            await renderPage(pageNum);
+        }
+        
+        async function zoomOut() {
+            scale = Math.max(scale / 1.25, 0.5);
+            await renderPage(pageNum);
+        }
+        
+        async function fitToScreen() {
+            if (!pdfDoc) return;
+            
+            const containerWidth = window.innerWidth - 40;
+            const containerHeight = window.innerHeight - 100; // Account for controls
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1 });
+            
+            const scaleX = containerWidth / viewport.width;
+            const scaleY = containerHeight / viewport.height;
+            scale = Math.min(scaleX, scaleY);
+            
+            await renderPage(pageNum);
+        }
+        
+        // Update button states
+        function updateButtonStates() {
+            document.getElementById('prevBtn').disabled = pageNum <= 1;
+            document.getElementById('nextBtn').disabled = pageNum >= totalPages;
+        }
+        
+        // Setup control buttons
+        function setupControls() {
+            document.getElementById('prevBtn').addEventListener('click', previousPage);
+            document.getElementById('nextBtn').addEventListener('click', nextPage);
+            document.getElementById('zoomInBtn').addEventListener('click', zoomIn);
+            document.getElementById('zoomOutBtn').addEventListener('click', zoomOut);
+            document.getElementById('fitBtn').addEventListener('click', fitToScreen);
+            document.getElementById('closeBtn').addEventListener('click', showThumbnailView);
+            
+            // Thumbnail click
+            document.getElementById('thumbnailCanvas').addEventListener('click', showFullView);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (!isFullView) return;
+                
+                switch(e.key) {
+                    case 'ArrowLeft':
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        previousPage();
+                        break;
+                    case 'ArrowRight':
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        nextPage();
+                        break;
+                    case '+':
+                    case '=':
+                        e.preventDefault();
+                        zoomIn();
+                        break;
+                    case '-':
+                        e.preventDefault();
+                        zoomOut();
+                        break;
+                    case 'Escape':
+                        e.preventDefault();
+                        showThumbnailView();
+                        break;
+                }
             });
-            showThumbDelay.reset(2.0);
-        });
-        pdfSetup.reset(3.0);
-    }
-}
-
-function showPDFThumbnail() {
-    print("Showing PDF thumbnail");
-    isPDFOpen = false;
-    
-    executeJS(`
-        if (window.spectaclesPDF && window.spectaclesPDF.showThumbnail) {
-            window.spectaclesPDF.showThumbnail();
-        }
-    `);
-}
-
-function openPDFFullView() {
-    print("Opening PDF full view");
-    isPDFOpen = true;
-    
-    executeJS(`
-        if (window.spectaclesPDF && window.spectaclesPDF.openFullView) {
-            window.spectaclesPDF.openFullView();
-        }
-        setTimeout(function() {
-            if (window.spectaclesPDF && window.spectaclesPDF.fitToScreen) {
-                window.spectaclesPDF.fitToScreen();
-            }
-        }, 500);
-    `);
-}
-
-function closePDFView() {
-    print("Closing PDF view");
-    showPDFThumbnail();
-}
-
-function nextPage() {
-    if (!isPDFOpen) return;
-    
-    print("Next page");
-    executeJS(`
-        if (window.spectaclesPDF) {
-            window.spectaclesPDF.nextPage();
-        }
-    `);
-}
-
-function previousPage() {
-    if (!isPDFOpen) return;
-    
-    print("Previous page");
-    executeJS(`
-        if (window.spectaclesPDF) {
-            window.spectaclesPDF.previousPage();
-        }
-    `);
-}
-
-function onUpdate() {
-    if (!isInitialized) return;
-    
-    // Get current time
-    var currentTime = getTime() * 1000; // Convert to milliseconds
-    
-    // Prevent too frequent gestures
-    if (currentTime - lastGestureTime < minGestureInterval) {
-        return;
-    }
-    
-    // Try to get hand position
-    var handPosition = getHandPosition();
-    
-    if (handPosition) {
-        if (!isTracking) {
-            // Start tracking
-            isTracking = true;
-            gestureStartPosition = handPosition;
-            gestureStartTime = currentTime;
-            lastHandPosition = handPosition;
-            return;
         }
         
-        // Check for gestures
-        var deltaTime = currentTime - gestureStartTime;
-        var deltaPosition = vec3.distance(handPosition, gestureStartPosition);
-        
-        // Click gesture (minimal movement, short duration)
-        if (deltaTime > 200 && deltaTime < 800 && deltaPosition < script.clickThreshold) {
-            onHandClick(handPosition);
-            resetGestureTracking();
-            lastGestureTime = currentTime;
-            return;
-        }
-        
-        // Swipe gesture (significant movement)
-        if (deltaPosition > script.swipeThreshold && deltaTime > 300) {
-            var swipeDirection = getSwipeDirection(gestureStartPosition, handPosition);
-            onHandSwipe(swipeDirection);
-            resetGestureTracking();
-            lastGestureTime = currentTime;
-            return;
-        }
-        
-        // Update last position
-        lastHandPosition = handPosition;
-        
-        // Reset if gesture takes too long
-        if (deltaTime > 2000) {
-            resetGestureTracking();
-        }
-    } else {
-        // No hand detected
-        if (isTracking) {
-            resetGestureTracking();
-        }
-    }
-}
-
-function getHandPosition() {
-    // Try multiple methods to get hand position
-    
-    // Method 1: HandTracking component
-    if (handTracking) {
-        try {
-            var rightHand = handTracking.getRightHand();
-            if (rightHand && rightHand.isTracked()) {
-                var indexTip = rightHand.getIndexTip();
-                if (indexTip) {
-                    return indexTip.getPosition();
-                }
-            }
+        // Spectacles Integration API
+        window.spectaclesPDF = {
+            // Initialize the PDF viewer
+            initialize: function() {
+                console.log('Spectacles PDF initialized');
+                return isInitialized;
+            },
             
-            var leftHand = handTracking.getLeftHand();
-            if (leftHand && leftHand.isTracked()) {
-                var indexTip = leftHand.getIndexTip();
-                if (indexTip) {
-                    return indexTip.getPosition();
-                }
+            // Show thumbnail view
+            showThumbnail: function() {
+                showThumbnailView();
+            },
+            
+            // Open full view
+            openFullView: function() {
+                showFullView();
+            },
+            
+            // Fit to screen
+            fitToScreen: function() {
+                return fitToScreen();
+            },
+            
+            // Legacy compatibility
+            fitWidth: function() {
+                return fitToScreen();
+            },
+            
+            // Navigation
+            nextPage: function() {
+                return nextPage();
+            },
+            
+            previousPage: function() {
+                return previousPage();
+            },
+            
+            // Zoom controls
+            zoomIn: function() {
+                return zoomIn();
+            },
+            
+            zoomOut: function() {
+                return zoomOut();
+            },
+            
+            // Getters
+            getCurrentPage: function() {
+                return pageNum;
+            },
+            
+            getTotalPages: function() {
+                return totalPages;
+            },
+            
+            getScale: function() {
+                return scale;
+            },
+            
+            isFullView: function() {
+                return isFullView;
+            },
+            
+            isInitialized: function() {
+                return isInitialized;
+            },
+            
+            // Properties for external access
+            currentPage: pageNum,
+            totalPages: totalPages
+        };
+        
+        // Update properties when they change
+        function updateSpectaclesAPI() {
+            if (window.spectaclesPDF) {
+                window.spectaclesPDF.currentPage = pageNum;
+                window.spectaclesPDF.totalPages = totalPages;
             }
-        } catch (error) {
-            // Silent fail, try next method
         }
-    }
-    
-    // Method 2: Try to find HandTracking in scene
-    try {
-        var handTrackingObjects = global.scene.findObjectsByName("HandTracking");
-        if (handTrackingObjects.length > 0) {
-            var ht = handTrackingObjects[0].getComponent("Component.HandTracking");
-            if (ht) {
-                var rightHand = ht.getRightHand();
-                if (rightHand && rightHand.isTracked()) {
-                    var indexTip = rightHand.getIndexTip();
-                    if (indexTip) {
-                        return indexTip.getPosition();
-                    }
-                }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing PDF viewer...');
+            initPDFViewer();
+        });
+        
+        // Expose for debugging
+        window.debug = {
+            showThumbnail: showThumbnailView,
+            showFull: showFullView,
+            nextPage: nextPage,
+            prevPage: previousPage,
+            getCurrentState: () => ({
+                isFullView,
+                isInitialized,
+                pageNum,
+                totalPages,
+                scale
+            })
+        };
+        
+        // Handle visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('Page hidden');
+            } else {
+                console.log('Page visible');
             }
-        }
-    } catch (error) {
-        // Silent fail
-    }
-    
-    return null;
-}
-
-function getSwipeDirection(startPos, endPos) {
-    var delta = vec3.subtract(endPos, startPos);
-    
-    // Determine primary direction
-    if (Math.abs(delta.x) > Math.abs(delta.y) && Math.abs(delta.x) > Math.abs(delta.z)) {
-        return delta.x > 0 ? "right" : "left";
-    } else if (Math.abs(delta.y) > Math.abs(delta.z)) {
-        return delta.y > 0 ? "up" : "down";
-    } else {
-        return delta.z > 0 ? "forward" : "backward";
-    }
-}
-
-function onHandClick(position) {
-    if (script.debugMode) {
-        print("Hand click detected at: " + position.toString());
-    }
-    
-    if (!isPDFOpen) {
-        openPDFFullView();
-    } else {
-        closePDFView();
-    }
-}
-
-function onHandSwipe(direction) {
-    if (script.debugMode) {
-        print("Hand swipe detected: " + direction);
-    }
-    
-    if (!isPDFOpen) return;
-    
-    switch (direction) {
-        case "left":
-            nextPage();
-            break;
-        case "right":
-            previousPage();
-            break;
-        case "up":
-            closePDFView();
-            break;
-    }
-}
-
-function resetGestureTracking() {
-    isTracking = false;
-    gestureStartPosition = null;
-    gestureStartTime = 0;
-    lastHandPosition = null;
-}
-
-function executeJS(code) {
-    if (!webView) return;
-    
-    try {
-        if (webView.executeJavaScript) {
-            webView.executeJavaScript(code);
-        }
-        if (script.debugMode && code.length < 100) {
-            print("JS: " + code);
-        }
-    } catch (error) {
-        if (script.debugMode) {
-            print("JS Error: " + error);
-        }
-    }
-}
-
-// Utility function to get current time
-function getTime() {
-    return script.getSceneObject().getTransform().getWorldPosition().x * 0 + global.getTime();
-}
-
-// Initialize when script starts
-script.createEvent("OnStartEvent").bind(initialize);
-
-// Cleanup on disable
-script.createEvent("OnDestroyEvent").bind(function() {
-    print("PDF Viewer Controller destroyed");
-});
-
-print("Enhanced PDF Viewer Controller loaded");
+        });
+        
+        console.log('Spectacles PDF Viewer script loaded');
+    </script>
+</body>
+</html>
