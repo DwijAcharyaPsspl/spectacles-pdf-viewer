@@ -406,35 +406,37 @@
             document.getElementById('thumbnailView').classList.add('fade-in');
         }
 
-        // Add this to your index.html script section
-function enableSpectaclesTouch() {
-    // Prevent default touch behaviors that conflict with Spectacles
-    document.addEventListener('touchstart', function(e) {
-        // Allow touch to propagate to Spectacles
-        e.stopPropagation();
-    }, { passive: true });
-    
-    document.addEventListener('touchmove', function(e) {
-        // Enable scrolling and zooming
-        e.stopPropagation();
-    }, { passive: true });
-    
-    document.addEventListener('touchend', function(e) {
-        e.stopPropagation();
-    }, { passive: true });
-    
-    // Enable proper gesture handling for PDF canvas
-    const pdfCanvas = document.getElementById('pdfCanvas');
-    if (pdfCanvas) {
-        pdfCanvas.style.touchAction = 'auto';
-        pdfCanvas.addEventListener('wheel', function(e) {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? -0.1 : 0.1;
-            scale = Math.max(0.5, Math.min(4.0, scale + delta));
-            renderPage(pageNum);
-        });
+    function enableSpectaclesTouch() {
+        const pdfCanvas = document.getElementById('pdfCanvas');
+
+        if (pdfCanvas) {
+            pdfCanvas.style.touchAction = 'auto';
+
+            let lastDist = null;
+
+            pdfCanvas.addEventListener('touchmove', function (e) {
+                if (e.touches.length === 2) {
+                    let dx = e.touches[0].pageX - e.touches[1].pageX;
+                    let dy = e.touches[0].pageY - e.touches[1].pageY;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (lastDist) {
+                        if (dist > lastDist + 10) {
+                            zoomIn();
+                        } else if (dist < lastDist - 10) {
+                            zoomOut();
+                        }
+                    }
+                    lastDist = dist;
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            pdfCanvas.addEventListener('touchend', function () {
+                lastDist = null;
+            });
+        }
     }
-}
 
 // Call this when PDF opens
 function showFullView() {
