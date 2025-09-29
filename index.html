@@ -14,199 +14,87 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1a1a1a;
             overflow: hidden;
             width: 100vw;
             height: 100vh;
             touch-action: manipulation;
         }
 
-        /* Container Views */
-        #thumbnailView, #fullView {
+        /* Spectacles-optimized layout */
+        .spectacles-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            transition: opacity 0.3s ease;
-        }
-
-        #thumbnailView {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 10;
-        }
-
-        #fullView {
-            display: none;
-            background: #1a1a1a;
-            z-index: 20;
-            overflow: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* Thumbnail Styling */
-        .thumbnail-container {
-            text-align: center;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-        }
-
-        .thumbnail-container h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 32px;
-        }
-
-        #thumbnailCanvas {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-
-        #thumbnailCanvas:hover {
-            transform: scale(1.02);
-        }
-
-        .pdf-info {
-            margin-top: 20px;
-            color: #666;
-            font-size: 16px;
-        }
-
-        .gesture-hint {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f0f0f0;
-            border-radius: 10px;
-            font-size: 14px;
-            color: #555;
-        }
-
-        /* Full View Styling */
-        .pdf-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            min-height: 100vh;
-            padding: 20px;
-            touch-action: auto;
         }
 
         #pdfCanvas {
-            max-width: 95%;
-            max-height: 90vh;
+            max-width: 90%;
+            max-height: 85vh;
             width: auto;
             height: auto;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
             border-radius: 8px;
             display: block;
-            margin: 0 auto;
-            touch-action: auto;
+            background: white;
         }
 
-        /* Navigation Controls */
-        .nav-controls {
+        /* Minimal UI for Spectacles */
+        .page-info {
             position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px 25px;
-            border-radius: 50px;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
             z-index: 100;
         }
 
-        .nav-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 600;
-        }
-
-        .nav-btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-
-        .nav-btn:disabled {
-            background: #555;
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-
-        .page-indicator {
-            color: white;
-            padding: 12px 20px;
-            font-size: 16px;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 25px;
-        }
-
-        /* Zoom Controls */
-        .zoom-controls {
+        .status-indicator {
             position: fixed;
-            top: 30px;
-            right: 30px;
-            display: flex;
-            gap: 10px;
-            z-index: 100;
-        }
-
-        .zoom-btn {
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border: none;
-            width: 50px;
-            height: 50px;
+            top: 20px;
+            left: 20px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            background: #e74c3c;
+            z-index: 100;
+            transition: background 0.3s ease;
         }
 
-        .zoom-btn:hover {
-            background: #667eea;
-            transform: scale(1.1);
+        .status-indicator.connected {
+            background: #2ecc71;
         }
 
-        /* Loading Indicator */
-        .loading {
+        /* Loading state */
+        .loading-overlay {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 24px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             z-index: 1000;
-            text-align: center;
         }
 
-        .spinner {
+        .loading-spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-top: 4px solid white;
             border-radius: 50%;
             width: 50px;
             height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
         }
 
         @keyframes spin {
@@ -214,334 +102,359 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Close Button */
-        .close-btn {
+        /* Gesture hint overlay */
+        .gesture-hint {
             position: fixed;
-            top: 30px;
-            left: 30px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 100;
-            transition: all 0.2s ease;
-        }
-
-        .close-btn:hover {
-            background: #e74c3c;
-            transform: scale(1.1);
-        }
-
-        /* Status Indicator */
-        .status-bar {
-            position: fixed;
-            top: 10px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 12px 24px;
+            border-radius: 25px;
             font-size: 12px;
-            z-index: 1000;
+            z-index: 100;
+            opacity: 0.7;
         }
-
-        .status-connected { background: rgba(46, 204, 113, 0.8); }
-        .status-loading { background: rgba(241, 196, 15, 0.8); }
-        .status-error { background: rgba(231, 76, 60, 0.8); }
     </style>
 </head>
 <body>
-    <!-- Status Bar -->
-    <div id="statusBar" class="status-bar">Connecting...</div>
+    <!-- Status indicator -->
+    <div id="statusIndicator" class="status-indicator"></div>
 
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="loading" style="display: none;">
-        <div class="spinner"></div>
-        <div>Loading PDF...</div>
+    <!-- Page info -->
+    <div id="pageInfo" class="page-info">Page 1 / 1</div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
     </div>
 
-    <!-- Thumbnail View -->
-    <div id="thumbnailView">
-        <div class="thumbnail-container">
-            <h1>📄 PDF Viewer</h1>
-            <canvas id="thumbnailCanvas"></canvas>
-            <div class="pdf-info" id="pdfInfo">Ready to load PDF</div>
-            <div class="gesture-hint">
-                👆 Tap to open full view<br>
-                👈👉 Swipe to navigate pages
-            </div>
-        </div>
+    <!-- Main PDF container -->
+    <div class="spectacles-container">
+        <canvas id="pdfCanvas"></canvas>
     </div>
 
-    <!-- Full PDF View -->
-    <div id="fullView">
-        <button class="close-btn" onclick="spectaclesPDF.showThumbnail()">✕</button>
-        
-        <div class="zoom-controls">
-            <button class="zoom-btn" onclick="spectaclesPDF.zoomIn()">+</button>
-            <button class="zoom-btn" onclick="spectaclesPDF.zoomOut()">−</button>
-        </div>
-
-        <div class="pdf-container">
-            <canvas id="pdfCanvas"></canvas>
-        </div>
-
-        <div class="nav-controls">
-            <button class="nav-btn" id="prevBtn" onclick="spectaclesPDF.previousPage()">← Prev</button>
-            <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
-            <button class="nav-btn" id="nextBtn" onclick="spectaclesPDF.nextPage()">Next →</button>
-        </div>
-    </div>
+    <!-- Gesture hint -->
+    <div class="gesture-hint">Swipe ← → to navigate</div>
 
     <script>
-        // PDF Viewer Controller for Spectacles
-        const spectaclesPDF = {
-            socket: null,
-            sessionId: null,
-            currentPDF: null,
-            currentPage: 1,
-            totalPages: 1,
-            zoomLevel: 1.0,
-            isConnected: false,
-            pageCache: {},
+        // Spectacles PDF Viewer Controller
+        class SpectaclesPDFViewer {
+            constructor() {
+                this.socket = null;
+                this.sessionId = null;
+                this.currentPDF = null;
+                this.currentPage = 1;
+                this.totalPages = 1;
+                this.isConnected = false;
+                this.isLoading = false;
+                this.serverURL = 'https://pdf-viewer-server.onrender.com';
+                
+                // Configuration
+                this.config = {
+                    pdfId: 'sample', // Default PDF ID
+                    quality: 'high',
+                    preloadPages: 2 // Pages to preload ahead
+                };
+            }
 
-            // Initialize connection
-            init() {
-                console.log('Initializing PDF Viewer...');
-                this.updateStatus('Connecting to server...', 'loading');
+            async init() {
+                console.log('[Spectacles] Initializing PDF Viewer...');
+                this.showLoading(true);
+                
+                // Parse URL parameters for PDF ID
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('pdf')) {
+                    this.config.pdfId = urlParams.get('pdf');
+                }
                 
                 // Connect to server
-                this.socket = io('https://pdf-viewer-server.onrender.com', {
+                this.connectToServer();
+                
+                // Setup gesture handlers
+                this.setupGestureHandlers();
+                
+                // Expose methods to window for Lens Studio
+                this.exposeToLensStudio();
+            }
+
+            connectToServer() {
+                console.log('[Spectacles] Connecting to server:', this.serverURL);
+                
+                this.socket = io(this.serverURL, {
                     transports: ['websocket', 'polling'],
                     reconnection: true,
                     reconnectionDelay: 1000,
-                    reconnectionAttempts: 5
+                    reconnectionAttempts: 10,
+                    timeout: 10000
                 });
 
                 this.setupSocketHandlers();
-                this.setupTouchHandlers();
-            },
+            }
 
             setupSocketHandlers() {
                 this.socket.on('connect', () => {
-                    console.log('Socket connected');
+                    console.log('[Spectacles] Connected to server');
                     this.isConnected = true;
-                    this.updateStatus('Connected', 'connected');
+                    this.updateConnectionStatus(true);
                 });
 
                 this.socket.on('connected', (data) => {
-                    console.log('Session established:', data);
+                    console.log('[Spectacles] Session established:', data.session_id);
                     this.sessionId = data.session_id;
-                    this.loadDefaultPDF();
+                    this.loadPDF(this.config.pdfId);
                 });
 
                 this.socket.on('pdfLoaded', (data) => {
-                    console.log('PDF loaded:', data);
+                    console.log('[Spectacles] PDF loaded:', data);
                     if (data.success) {
                         this.currentPDF = data.pdfId;
                         this.totalPages = data.totalPages;
                         this.currentPage = 1;
-                        this.updatePDFInfo(data.metadata);
                         this.requestPage(1);
+                        
+                        // Preload next pages
+                        this.preloadPages(2, this.config.preloadPages);
                     } else {
-                        this.updateStatus('Error loading PDF', 'error');
+                        console.error('[Spectacles] PDF load failed:', data.error);
+                        this.showLoading(false);
                     }
                 });
 
                 this.socket.on('pageData', (data) => {
-                    console.log('Page data received:', data.pageNum);
-                    this.hideLoading();
                     if (data.error) {
-                        console.error('Page error:', data.error);
+                        console.error('[Spectacles] Page error:', data.error);
+                        this.showLoading(false);
                         return;
                     }
+                    
+                    console.log('[Spectacles] Page received:', data.pageNum);
                     this.renderPage(data);
+                    this.showLoading(false);
                 });
 
                 this.socket.on('disconnect', () => {
-                    console.log('Socket disconnected');
+                    console.log('[Spectacles] Disconnected from server');
                     this.isConnected = false;
-                    this.updateStatus('Disconnected', 'error');
-                });
-            },
-
-            setupTouchHandlers() {
-                // Thumbnail canvas tap
-                const thumbnailCanvas = document.getElementById('thumbnailCanvas');
-                thumbnailCanvas.addEventListener('click', () => {
-                    this.openFullView();
+                    this.updateConnectionStatus(false);
                 });
 
-                // PDF canvas tap (for Spectacles compatibility)
-                const pdfCanvas = document.getElementById('pdfCanvas');
-                pdfCanvas.addEventListener('click', (e) => {
-                    // Optional: implement tap-to-zoom or other interactions
+                this.socket.on('connect_error', (error) => {
+                    console.error('[Spectacles] Connection error:', error);
+                    this.updateConnectionStatus(false);
                 });
-            },
+            }
 
-            async loadDefaultPDF() {
-                try {
-                    // Get list of available PDFs
-                    const response = await fetch('https://pdf-viewer-server.onrender.com/api/pdfs');
-                    const data = await response.json();
-                    
-                    if (data.success && data.pdfs.length > 0) {
-                        const firstPDF = data.pdfs[0];
-                        this.loadPDF(firstPDF.id);
-                    } else {
-                        this.updateStatus('No PDFs found', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error loading PDFs:', error);
-                    this.updateStatus('Error loading PDFs', 'error');
+            setupGestureHandlers() {
+                let touchStartX = 0;
+                let touchEndX = 0;
+                const threshold = 50; // Minimum swipe distance
+
+                document.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    this.handleSwipe(touchStartX, touchEndX, threshold);
+                }, { passive: true });
+
+                // Keyboard support for testing
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft') this.previousPage();
+                    if (e.key === 'ArrowRight') this.nextPage();
+                });
+            }
+
+            handleSwipe(startX, endX, threshold) {
+                const distance = endX - startX;
+                
+                if (Math.abs(distance) < threshold) return;
+                
+                if (distance > 0) {
+                    // Swipe right - previous page
+                    this.previousPage();
+                } else {
+                    // Swipe left - next page
+                    this.nextPage();
                 }
-            },
+            }
 
             loadPDF(pdfId) {
-                console.log('Loading PDF:', pdfId);
-                this.showLoading();
+                console.log('[Spectacles] Loading PDF:', pdfId);
+                this.showLoading(true);
+                
+                if (!this.socket || !this.isConnected) {
+                    console.error('[Spectacles] Not connected to server');
+                    return;
+                }
+                
                 this.socket.emit('loadPDF', { pdfId: pdfId });
-            },
+            }
 
             requestPage(pageNum) {
-                console.log('Requesting page:', pageNum);
-                this.showLoading();
+                if (pageNum < 1 || pageNum > this.totalPages) {
+                    console.warn('[Spectacles] Invalid page number:', pageNum);
+                    return;
+                }
+                
+                console.log('[Spectacles] Requesting page:', pageNum);
+                this.showLoading(true);
+                
                 this.socket.emit('requestPage', {
                     pageNum: pageNum,
-                    options: { quality: 'high' }
+                    options: { quality: this.config.quality }
                 });
-            },
+            }
+
+            preloadPages(startPage, count) {
+                const pages = [];
+                for (let i = 0; i < count; i++) {
+                    const page = startPage + i;
+                    if (page > 1 && page <= this.totalPages) {
+                        pages.push(page);
+                    }
+                }
+                
+                if (pages.length > 0) {
+                    console.log('[Spectacles] Preloading pages:', pages);
+                    this.socket.emit('preloadPages', {
+                        pageNums: pages,
+                        options: { quality: 'medium' }
+                    });
+                }
+            }
 
             renderPage(pageData) {
                 const canvas = document.getElementById('pdfCanvas');
-                const thumbnailCanvas = document.getElementById('thumbnailCanvas');
                 const ctx = canvas.getContext('2d');
-                const thumbCtx = thumbnailCanvas.getContext('2d');
 
                 const img = new Image();
                 img.onload = () => {
-                    // Render to main canvas
+                    // Set canvas dimensions
                     canvas.width = pageData.width;
                     canvas.height = pageData.height;
+                    
+                    // Draw image
                     ctx.drawImage(img, 0, 0);
-
-                    // Render to thumbnail (only for first page)
-                    if (pageData.pageNum === 1) {
-                        const thumbScale = Math.min(300 / img.width, 400 / img.height);
-                        thumbnailCanvas.width = img.width * thumbScale;
-                        thumbnailCanvas.height = img.height * thumbScale;
-                        thumbCtx.drawImage(img, 0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
-                    }
-
+                    
+                    // Update current page
                     this.currentPage = pageData.pageNum;
-                    this.updatePageIndicator();
-                    this.applyZoom();
+                    this.updatePageInfo();
+                    
+                    // Notify Lens Studio
+                    this.notifyLensStudio('pageChanged', {
+                        page: this.currentPage,
+                        total: this.totalPages
+                    });
                 };
+                
+                img.onerror = () => {
+                    console.error('[Spectacles] Failed to load image');
+                    this.showLoading(false);
+                };
+                
                 img.src = 'data:image/png;base64,' + pageData.imageBase64;
-            },
+            }
 
             // Navigation methods
             nextPage() {
-                if (this.currentPage < this.totalPages) {
+                if (this.currentPage < this.totalPages && !this.isLoading) {
+                    console.log('[Spectacles] Next page');
                     this.requestPage(this.currentPage + 1);
+                    
+                    // Preload ahead
+                    this.preloadPages(this.currentPage + 2, this.config.preloadPages);
                 }
-            },
+            }
 
             previousPage() {
-                if (this.currentPage > 1) {
+                if (this.currentPage > 1 && !this.isLoading) {
+                    console.log('[Spectacles] Previous page');
                     this.requestPage(this.currentPage - 1);
                 }
-            },
+            }
 
             goToPage(pageNum) {
-                if (pageNum >= 1 && pageNum <= this.totalPages) {
+                if (pageNum >= 1 && pageNum <= this.totalPages && !this.isLoading) {
+                    console.log('[Spectacles] Go to page:', pageNum);
                     this.requestPage(pageNum);
+                    
+                    // Preload around target
+                    this.preloadPages(pageNum + 1, this.config.preloadPages);
                 }
-            },
-
-            // View switching
-            openFullView() {
-                console.log('Opening full view');
-                document.getElementById('thumbnailView').style.display = 'none';
-                document.getElementById('fullView').style.display = 'block';
-                window.spectaclesControllerState = 'fullview';
-            },
-
-            showThumbnail() {
-                console.log('Showing thumbnail view');
-                document.getElementById('thumbnailView').style.display = 'flex';
-                document.getElementById('fullView').style.display = 'none';
-                window.spectaclesControllerState = 'thumbnail';
-            },
-
-            // Zoom controls
-            zoomIn() {
-                this.zoomLevel = Math.min(3.0, this.zoomLevel + 0.2);
-                this.applyZoom();
-            },
-
-            zoomOut() {
-                this.zoomLevel = Math.max(0.5, this.zoomLevel - 0.2);
-                this.applyZoom();
-            },
-
-            setZoom(level) {
-                this.zoomLevel = Math.max(0.5, Math.min(3.0, level));
-                this.applyZoom();
-            },
-
-            applyZoom() {
-                const canvas = document.getElementById('pdfCanvas');
-                canvas.style.transform = `scale(${this.zoomLevel})`;
-                canvas.style.transformOrigin = 'center center';
-            },
+            }
 
             // UI updates
-            updatePageIndicator() {
-                const indicator = document.getElementById('pageIndicator');
-                indicator.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
-                
-                document.getElementById('prevBtn').disabled = this.currentPage <= 1;
-                document.getElementById('nextBtn').disabled = this.currentPage >= this.totalPages;
-            },
-
-            updatePDFInfo(metadata) {
-                const info = document.getElementById('pdfInfo');
-                info.innerHTML = `
-                    <strong>${metadata.title || 'Untitled'}</strong><br>
-                    ${metadata.pages} pages
-                `;
-            },
-
-            updateStatus(message, type) {
-                const statusBar = document.getElementById('statusBar');
-                statusBar.textContent = message;
-                statusBar.className = `status-bar status-${type}`;
-            },
-
-            showLoading() {
-                document.getElementById('loadingIndicator').style.display = 'block';
-            },
-
-            hideLoading() {
-                document.getElementById('loadingIndicator').style.display = 'none';
+            updatePageInfo() {
+                const pageInfo = document.getElementById('pageInfo');
+                pageInfo.textContent = `Page ${this.currentPage} / ${this.totalPages}`;
             }
-        };
 
-        // Expose to window for Spectacles controller
-        window.spectaclesPDF = spectaclesPDF;
-        window.spectaclesConnected = false;
-        window.spectaclesControllerState = 'thumbnail';
+            updateConnectionStatus(connected) {
+                const indicator = document.getElementById('statusIndicator');
+                if (connected) {
+                    indicator.classList.add('connected');
+                } else {
+                    indicator.classList.remove('connected');
+                }
+            }
 
-        // Initialize on page load
+            showLoading(show) {
+                this.isLoading = show;
+                const overlay = document.getElementById('loadingOverlay');
+                overlay.style.display = show ? 'flex' : 'none';
+            }
+
+            // Lens Studio integration
+            exposeToLensStudio() {
+                window.spectaclesPDFViewer = this;
+                
+                // Create message interface for Lens Studio
+                window.spectaclesInterface = {
+                    nextPage: () => this.nextPage(),
+                    previousPage: () => this.previousPage(),
+                    goToPage: (page) => this.goToPage(page),
+                    getCurrentPage: () => this.currentPage,
+                    getTotalPages: () => this.totalPages,
+                    isConnected: () => this.isConnected,
+                    loadPDF: (pdfId) => this.loadPDF(pdfId)
+                };
+                
+                console.log('[Spectacles] Interface exposed to Lens Studio');
+            }
+
+            notifyLensStudio(event, data) {
+                // Send message to Lens Studio via postMessage
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'spectacles-pdf-viewer',
+                        event: event,
+                        data: data
+                    }, '*');
+                }
+            }
+        }
+
+        // Initialize viewer
+        let viewer;
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('=== Spectacles PDF Viewer Ready ===');
-            spectaclesPDF.init();
+            console.log('[Spectacles] PDF Viewer Starting...');
+            viewer = new SpectaclesPDFViewer();
+            viewer.init();
+        });
+
+        // Handle messages from Lens Studio
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'lens-studio-command') {
+                const { command, params } = event.data;
+                console.log('[Spectacles] Command from Lens Studio:', command, params);
+                
+                if (viewer && window.spectaclesInterface[command]) {
+                    window.spectaclesInterface[command](params);
+                }
+            }
         });
     </script>
 </body>
