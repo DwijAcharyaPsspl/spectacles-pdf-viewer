@@ -1,676 +1,548 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
     <title>Spectacles PDF Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            background: #1a1a1a;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-            transition: all 0.3s ease;
+            box-sizing: border-box;
         }
-        
-        /* Thumbnail view styles */
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            touch-action: manipulation;
+        }
+
+        /* Container Views */
+        #thumbnailView, #fullView {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: opacity 0.3s ease;
+        }
+
         #thumbnailView {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            width: 100vw;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            justify-content: center;
+            z-index: 10;
         }
-        
-        #thumbnailCanvas {
-            max-width: 60%;
-            max-height: 60%;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            cursor: pointer;
-            transition: transform 0.3s ease;
-            background: white;
-        }
-        
-        #thumbnailCanvas:hover {
-            transform: scale(1.05);
-        }
-        
-        #thumbnailTitle {
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            text-align: center;
-        }
-        
-        #thumbnailSubtitle {
-            color: rgba(255,255,255,0.8);
-            font-size: 16px;
-            margin-top: 10px;
-            text-align: center;
-        }
-        
-        /* Full view styles */
+
         #fullView {
             display: none;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            position: relative;
+            background: #1a1a1a;
+            z-index: 20;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
         }
-        
+
+        /* Thumbnail Styling */
+        .thumbnail-container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+        }
+
+        .thumbnail-container h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+
+        #thumbnailCanvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        #thumbnailCanvas:hover {
+            transform: scale(1.02);
+        }
+
+        .pdf-info {
+            margin-top: 20px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .gesture-hint {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Full View Styling */
+        .pdf-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+            touch-action: auto;
+        }
+
         #pdfCanvas {
+            max-width: 95%;
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
             display: block;
             margin: 0 auto;
-            max-width: 100%;
-            max-height: 100vh;
-            background: white;
+            touch-action: auto;
         }
-        
-        #controls {
+
+        /* Navigation Controls */
+        .nav-controls {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border-radius: 8px;
-            color: white;
-            z-index: 1000;
-            display: flex;
-            gap: 10px;
-            backdrop-filter: blur(10px);
-        }
-        
-        button {
-            padding: 8px 12px;
-            background: #007acc;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: background 0.3s ease;
-        }
-        
-        button:hover {
-            background: #005a99;
-        }
-        
-        button:disabled {
-            background: #333;
-            cursor: not-allowed;
-        }
-        
-        #pageInfo {
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px 15px;
-            position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            border-radius: 20px;
-            font-size: 16px;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
             display: flex;
-            align-items: center;
             gap: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 50px;
+            z-index: 100;
         }
-        
-        #gestureHints {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.8);
+
+        .nav-btn {
+            background: #667eea;
             color: white;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 12px;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-            line-height: 1.4;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
         }
-        
-        #loading {
+
+        .nav-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .page-indicator {
+            color: white;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+        }
+
+        /* Zoom Controls */
+        .zoom-controls {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .zoom-btn:hover {
+            background: #667eea;
+            transform: scale(1.1);
+        }
+
+        /* Loading Indicator */
+        .loading {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 18px;
-            z-index: 2000;
-            background: rgba(0,0,0,0.8);
-            padding: 20px;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
+            font-size: 24px;
+            z-index: 1000;
+            text-align: center;
         }
-        
-        .gesture-indicator {
-            display: inline-block;
-            background: #007acc;
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Close Button */
+        .close-btn {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            margin-right: 5px;
-        }
-        
-        /* Animations */
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .slide-up {
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.2s ease;
         }
 
-    #fullView {
-        display: none;
-        width: 100vw;
-        height: 100vh;
-        background: #000;
-        position: relative;
-        overflow: auto; /* Enable scrolling */
-        touch-action: auto; /* Enable all touch gestures */
-    }
+        .close-btn:hover {
+            background: #e74c3c;
+            transform: scale(1.1);
+        }
 
-    #pdfCanvas {
-        display: block;
-        margin: 0 auto;
-        max-width: 100%;
-        max-height: 100vh;
-        touch-action: auto; /* Enable touch gestures */
-        user-select: none;
-    }
+        /* Status Indicator */
+        .status-bar {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+        }
 
-    body {
-        margin: 0;
-        padding: 0;
-        background: #1a1a1a;
-        font-family: Arial, sans-serif;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        touch-action: manipulation; /* Allow pinch-zoom and scroll */
-    }
+        .status-connected { background: rgba(46, 204, 113, 0.8); }
+        .status-loading { background: rgba(241, 196, 15, 0.8); }
+        .status-error { background: rgba(231, 76, 60, 0.8); }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 </head>
 <body>
-    <div id="loading">Loading PDF...</div>
-    
+    <!-- Status Bar -->
+    <div id="statusBar" class="status-bar">Connecting...</div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <div>Loading PDF...</div>
+    </div>
+
     <!-- Thumbnail View -->
     <div id="thumbnailView">
-        <canvas id="thumbnailCanvas"></canvas>
-        <div id="thumbnailTitle">PDF Document</div>
-        <div id="thumbnailSubtitle">👆 Tap to open • 📄 <span id="totalPagesThumb">0</span> pages</div>
+        <div class="thumbnail-container">
+            <h1>📄 PDF Viewer</h1>
+            <canvas id="thumbnailCanvas"></canvas>
+            <div class="pdf-info" id="pdfInfo">Ready to load PDF</div>
+            <div class="gesture-hint">
+                👆 Tap to open full view<br>
+                👈👉 Swipe to navigate pages
+            </div>
+        </div>
     </div>
-    
-    <!-- Full View -->
+
+    <!-- Full PDF View -->
     <div id="fullView">
-        <div id="gestureHints">
-            <div><span class="gesture-indicator">👈</span>Swipe left: Next page</div>
-            <div><span class="gesture-indicator">👉</span>Swipe right: Previous page</div>
-            <div><span class="gesture-indicator">👆</span>Swipe up: Close view</div>
-            <div><span class="gesture-indicator">👆</span>Tap: Toggle view</div>
+        <button class="close-btn" onclick="spectaclesPDF.showThumbnail()">✕</button>
+        
+        <div class="zoom-controls">
+            <button class="zoom-btn" onclick="spectaclesPDF.zoomIn()">+</button>
+            <button class="zoom-btn" onclick="spectaclesPDF.zoomOut()">−</button>
         </div>
-        
-        <div id="controls">
-            <button id="prevBtn">← Prev</button>
-            <button id="nextBtn">Next →</button>
-            <button id="zoomInBtn">🔍+</button>
-            <button id="zoomOutBtn">🔍-</button>
-            <button id="fitBtn">📏 Fit</button>
-            <button id="closeBtn">✕ Close</button>
+
+        <div class="pdf-container">
+            <canvas id="pdfCanvas"></canvas>
         </div>
-        
-        <canvas id="pdfCanvas"></canvas>
-        
-        <div id="pageInfo">
-            <span>Page <span id="pageNum">1</span> of <span id="totalPages">1</span></span>
-            <span>•</span>
-            <span id="zoomLevel">150%</span>
+
+        <div class="nav-controls">
+            <button class="nav-btn" id="prevBtn" onclick="spectaclesPDF.previousPage()">← Prev</button>
+            <span class="page-indicator" id="pageIndicator">Page 1 of 1</span>
+            <button class="nav-btn" id="nextBtn" onclick="spectaclesPDF.nextPage()">Next →</button>
         </div>
     </div>
 
     <script>
-        // PDF.js Configuration
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
-        
-        // Global variables
-        let pdfDoc = null;
-        let pageNum = 1;
-        let totalPages = 0;
-        let scale = 1.5;
-        let canvas = null;
-        let ctx = null;
-        let thumbnailCanvas = null;
-        let thumbnailCtx = null;
-        let isRendering = false;
-        let isFullView = false;
-        let isInitialized = false;
-        
-        // Get URL parameter for PDF file
-        function getUrlParameter(name) {
-            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-            const results = regex.exec(location.search);
-            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-        }
-        
-        // Initialize PDF viewer
-        async function initPDFViewer() {
-            try {
-                console.log('Initializing PDF viewer for Spectacles...');
+        // PDF Viewer Controller for Spectacles
+        const spectaclesPDF = {
+            socket: null,
+            sessionId: null,
+            currentPDF: null,
+            currentPage: 1,
+            totalPages: 1,
+            zoomLevel: 1.0,
+            isConnected: false,
+            pageCache: {},
+
+            // Initialize connection
+            init() {
+                console.log('Initializing PDF Viewer...');
+                this.updateStatus('Connecting to server...', 'loading');
                 
-                // Setup canvases
-                canvas = document.getElementById('pdfCanvas');
-                ctx = canvas.getContext('2d');
-                thumbnailCanvas = document.getElementById('thumbnailCanvas');
-                thumbnailCtx = thumbnailCanvas.getContext('2d');
-                
-                // Get PDF URL from parameter or use default
-                const pdfUrl = getUrlParameter('pdf') || 'https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf';
-                console.log('Loading PDF:', pdfUrl);
-                
-                // Load PDF document
-                const loadingTask = pdfjsLib.getDocument({
-                    url: pdfUrl,
-                    // Add CORS handling if needed
-                    httpHeaders: {},
-                    withCredentials: false
+                // Connect to server
+                this.socket = io('http://localhost:5000', {
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5
                 });
-                
-                pdfDoc = await loadingTask.promise;
-                totalPages = pdfDoc.numPages;
-                
-                // Update UI
-                document.getElementById('totalPages').textContent = totalPages;
-                document.getElementById('totalPagesThumb').textContent = totalPages;
-                document.getElementById('loading').style.display = 'none';
-                
-                // Render thumbnail
-                await renderThumbnail();
-                
-                // Setup controls
-                setupControls();
-                
-                // Mark as initialized
-                isInitialized = true;
-                
-                console.log('PDF loaded successfully:', totalPages, 'pages');
-                
-            } catch (error) {
-                console.error('Error loading PDF:', error);
-                document.getElementById('loading').innerHTML = 'Error loading PDF:<br>' + error.message;
-            }
-        }
-        
-        // Render thumbnail view
-        async function renderThumbnail() {
-            try {
-                const page = await pdfDoc.getPage(1);
-                const viewport = page.getViewport({ scale: 0.8 });
-                
-                // Set thumbnail canvas size
-                const maxWidth = window.innerWidth * 0.6;
-                const maxHeight = window.innerHeight * 0.6;
-                const scaleX = maxWidth / viewport.width;
-                const scaleY = maxHeight / viewport.height;
-                const thumbnailScale = Math.min(scaleX, scaleY) * 0.8;
-                
-                const scaledViewport = page.getViewport({ scale: thumbnailScale });
-                
-                thumbnailCanvas.width = scaledViewport.width;
-                thumbnailCanvas.height = scaledViewport.height;
-                
-                const renderContext = {
-                    canvasContext: thumbnailCtx,
-                    viewport: scaledViewport
-                };
-                
-                await page.render(renderContext).promise;
-                console.log('Thumbnail rendered');
-                
-            } catch (error) {
-                console.error('Error rendering thumbnail:', error);
-            }
-        }
-        
-        // Render specific page in full view
-        async function renderPage(num) {
-            if (isRendering || !isFullView) return;
-            isRendering = true;
-            
-            try {
-                const page = await pdfDoc.getPage(num);
-                const viewport = page.getViewport({ scale: scale });
-                
-                // Set canvas dimensions
-                const outputScale = window.devicePixelRatio || 1;
-                canvas.width = Math.floor(viewport.width * outputScale);
-                canvas.height = Math.floor(viewport.height * outputScale);
-                canvas.style.width = Math.floor(viewport.width) + 'px';
-                canvas.style.height = Math.floor(viewport.height) + 'px';
-                
-                const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
-                
-                const renderContext = {
-                    canvasContext: ctx,
-                    transform: transform,
-                    viewport: viewport
-                };
-                
-                await page.render(renderContext).promise;
-                
-                // Update page info
-                document.getElementById('pageNum').textContent = num;
-                document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
-                updateButtonStates();
-                
-                // Update page info callback for Spectacles
-                if (window.updatePageInfo) {
-                    window.updatePageInfo(num, totalPages);
-                }
-                
-                console.log('Page rendered:', num);
-                
-            } catch (error) {
-                console.error('Error rendering page:', error);
-            } finally {
-                isRendering = false;
-            }
-        }
-        
-        // Show thumbnail view
-        function showThumbnailView() {
-            console.log('Showing thumbnail view');
-            isFullView = false;
-            document.getElementById('fullView').style.display = 'none';
-            document.getElementById('thumbnailView').style.display = 'flex';
-            document.getElementById('thumbnailView').classList.add('fade-in');
-        }
 
-    function enableSpectaclesTouch() {
-        const pdfCanvas = document.getElementById('pdfCanvas');
+                this.setupSocketHandlers();
+                this.setupTouchHandlers();
+            },
 
-        if (pdfCanvas) {
-            pdfCanvas.style.touchAction = 'auto';
+            setupSocketHandlers() {
+                this.socket.on('connect', () => {
+                    console.log('Socket connected');
+                    this.isConnected = true;
+                    this.updateStatus('Connected', 'connected');
+                });
 
-            let lastDist = null;
+                this.socket.on('connected', (data) => {
+                    console.log('Session established:', data);
+                    this.sessionId = data.session_id;
+                    this.loadDefaultPDF();
+                });
 
-            pdfCanvas.addEventListener('touchmove', function (e) {
-                if (e.touches.length === 2) {
-                    let dx = e.touches[0].pageX - e.touches[1].pageX;
-                    let dy = e.touches[0].pageY - e.touches[1].pageY;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (lastDist) {
-                        if (dist > lastDist + 10) {
-                            zoomIn();
-                        } else if (dist < lastDist - 10) {
-                            zoomOut();
-                        }
+                this.socket.on('pdfLoaded', (data) => {
+                    console.log('PDF loaded:', data);
+                    if (data.success) {
+                        this.currentPDF = data.pdfId;
+                        this.totalPages = data.totalPages;
+                        this.currentPage = 1;
+                        this.updatePDFInfo(data.metadata);
+                        this.requestPage(1);
+                    } else {
+                        this.updateStatus('Error loading PDF', 'error');
                     }
-                    lastDist = dist;
-                    e.preventDefault();
+                });
+
+                this.socket.on('pageData', (data) => {
+                    console.log('Page data received:', data.pageNum);
+                    this.hideLoading();
+                    if (data.error) {
+                        console.error('Page error:', data.error);
+                        return;
+                    }
+                    this.renderPage(data);
+                });
+
+                this.socket.on('disconnect', () => {
+                    console.log('Socket disconnected');
+                    this.isConnected = false;
+                    this.updateStatus('Disconnected', 'error');
+                });
+            },
+
+            setupTouchHandlers() {
+                // Thumbnail canvas tap
+                const thumbnailCanvas = document.getElementById('thumbnailCanvas');
+                thumbnailCanvas.addEventListener('click', () => {
+                    this.openFullView();
+                });
+
+                // PDF canvas tap (for Spectacles compatibility)
+                const pdfCanvas = document.getElementById('pdfCanvas');
+                pdfCanvas.addEventListener('click', (e) => {
+                    // Optional: implement tap-to-zoom or other interactions
+                });
+            },
+
+            async loadDefaultPDF() {
+                try {
+                    // Get list of available PDFs
+                    const response = await fetch('http://localhost:5000/api/pdfs');
+                    const data = await response.json();
+                    
+                    if (data.success && data.pdfs.length > 0) {
+                        const firstPDF = data.pdfs[0];
+                        this.loadPDF(firstPDF.id);
+                    } else {
+                        this.updateStatus('No PDFs found', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error loading PDFs:', error);
+                    this.updateStatus('Error loading PDFs', 'error');
                 }
-            }, { passive: false });
+            },
 
-            pdfCanvas.addEventListener('touchend', function () {
-                lastDist = null;
-            });
-        }
-    }
+            loadPDF(pdfId) {
+                console.log('Loading PDF:', pdfId);
+                this.showLoading();
+                this.socket.emit('loadPDF', { pdfId: pdfId });
+            },
 
-// Call this when PDF opens
-function showFullView() {
-    console.log('Showing full view');
-    isFullView = true;
-    document.getElementById('thumbnailView').style.display = 'none';
-    document.getElementById('fullView').style.display = 'block';
-    document.getElementById('fullView').classList.add('slide-up');
-    
-    // Enable touch handling
-    enableSpectaclesTouch();
-    
-    setTimeout(() => renderPage(pageNum), 100);
-}
+            requestPage(pageNum) {
+                console.log('Requesting page:', pageNum);
+                this.showLoading();
+                this.socket.emit('requestPage', {
+                    pageNum: pageNum,
+                    options: { quality: 'high' }
+                });
+            },
 
-        
-        // Show full view
-        function showFullView() {
-            console.log('Showing full view');
-            isFullView = true;
-            document.getElementById('thumbnailView').style.display = 'none';
-            document.getElementById('fullView').style.display = 'block';
-            document.getElementById('fullView').classList.add('slide-up');
-            
-            // Render current page
-            setTimeout(() => {
-                renderPage(pageNum);
-            }, 100);
-        }
-        
-        // Navigation functions
-        async function nextPage() {
-            if (pageNum < totalPages) {
-                pageNum++;
-                await renderPage(pageNum);
-                console.log('Next page:', pageNum);
-            }
-        }
-        
-        async function previousPage() {
-            if (pageNum > 1) {
-                pageNum--;
-                await renderPage(pageNum);
-                console.log('Previous page:', pageNum);
-            }
-        }
-        
-        // Zoom functions
-        async function zoomIn() {
-            scale = Math.min(scale * 1.25, 4.0);
-            await renderPage(pageNum);
-        }
-        
-        async function zoomOut() {
-            scale = Math.max(scale / 1.25, 0.5);
-            await renderPage(pageNum);
-        }
-        
-        async function fitToScreen() {
-            if (!pdfDoc) return;
-            
-            const containerWidth = window.innerWidth - 40;
-            const containerHeight = window.innerHeight - 100; // Account for controls
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1 });
-            
-            const scaleX = containerWidth / viewport.width;
-            const scaleY = containerHeight / viewport.height;
-            scale = Math.min(scaleX, scaleY);
-            
-            await renderPage(pageNum);
-        }
-        
-        // Update button states
-        function updateButtonStates() {
-            document.getElementById('prevBtn').disabled = pageNum <= 1;
-            document.getElementById('nextBtn').disabled = pageNum >= totalPages;
-        }
-        
-        // Setup control buttons
-        function setupControls() {
-            document.getElementById('prevBtn').addEventListener('click', previousPage);
-            document.getElementById('nextBtn').addEventListener('click', nextPage);
-            document.getElementById('zoomInBtn').addEventListener('click', zoomIn);
-            document.getElementById('zoomOutBtn').addEventListener('click', zoomOut);
-            document.getElementById('fitBtn').addEventListener('click', fitToScreen);
-            document.getElementById('closeBtn').addEventListener('click', showThumbnailView);
-            
-            // Thumbnail click
-            document.getElementById('thumbnailCanvas').addEventListener('click', showFullView);
-            
-            // Keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                if (!isFullView) return;
-                
-                switch(e.key) {
-                    case 'ArrowLeft':
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        previousPage();
-                        break;
-                    case 'ArrowRight':
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        nextPage();
-                        break;
-                    case '+':
-                    case '=':
-                        e.preventDefault();
-                        zoomIn();
-                        break;
-                    case '-':
-                        e.preventDefault();
-                        zoomOut();
-                        break;
-                    case 'Escape':
-                        e.preventDefault();
-                        showThumbnailView();
-                        break;
+            renderPage(pageData) {
+                const canvas = document.getElementById('pdfCanvas');
+                const thumbnailCanvas = document.getElementById('thumbnailCanvas');
+                const ctx = canvas.getContext('2d');
+                const thumbCtx = thumbnailCanvas.getContext('2d');
+
+                const img = new Image();
+                img.onload = () => {
+                    // Render to main canvas
+                    canvas.width = pageData.width;
+                    canvas.height = pageData.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // Render to thumbnail (only for first page)
+                    if (pageData.pageNum === 1) {
+                        const thumbScale = Math.min(300 / img.width, 400 / img.height);
+                        thumbnailCanvas.width = img.width * thumbScale;
+                        thumbnailCanvas.height = img.height * thumbScale;
+                        thumbCtx.drawImage(img, 0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+                    }
+
+                    this.currentPage = pageData.pageNum;
+                    this.updatePageIndicator();
+                    this.applyZoom();
+                };
+                img.src = 'data:image/png;base64,' + pageData.imageBase64;
+            },
+
+            // Navigation methods
+            nextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.requestPage(this.currentPage + 1);
                 }
-            });
-        }
-        
-        // Spectacles Integration API
-        window.spectaclesPDF = {
-            // Initialize the PDF viewer
-            initialize: function() {
-                console.log('Spectacles PDF initialized');
-                return isInitialized;
             },
-            
-            // Show thumbnail view
-            showThumbnail: function() {
-                showThumbnailView();
+
+            previousPage() {
+                if (this.currentPage > 1) {
+                    this.requestPage(this.currentPage - 1);
+                }
             },
-            
-            // Open full view
-            openFullView: function() {
-                showFullView();
+
+            goToPage(pageNum) {
+                if (pageNum >= 1 && pageNum <= this.totalPages) {
+                    this.requestPage(pageNum);
+                }
             },
-            
-            // Fit to screen
-            fitToScreen: function() {
-                return fitToScreen();
+
+            // View switching
+            openFullView() {
+                console.log('Opening full view');
+                document.getElementById('thumbnailView').style.display = 'none';
+                document.getElementById('fullView').style.display = 'block';
+                window.spectaclesControllerState = 'fullview';
             },
-            
-            // Legacy compatibility
-            fitWidth: function() {
-                return fitToScreen();
+
+            showThumbnail() {
+                console.log('Showing thumbnail view');
+                document.getElementById('thumbnailView').style.display = 'flex';
+                document.getElementById('fullView').style.display = 'none';
+                window.spectaclesControllerState = 'thumbnail';
             },
-            
-            // Navigation
-            nextPage: function() {
-                return nextPage();
-            },
-            
-            previousPage: function() {
-                return previousPage();
-            },
-            
+
             // Zoom controls
-            zoomIn: function() {
-                return zoomIn();
+            zoomIn() {
+                this.zoomLevel = Math.min(3.0, this.zoomLevel + 0.2);
+                this.applyZoom();
             },
-            
-            zoomOut: function() {
-                return zoomOut();
+
+            zoomOut() {
+                this.zoomLevel = Math.max(0.5, this.zoomLevel - 0.2);
+                this.applyZoom();
             },
-            
-            // Getters
-            getCurrentPage: function() {
-                return pageNum;
+
+            setZoom(level) {
+                this.zoomLevel = Math.max(0.5, Math.min(3.0, level));
+                this.applyZoom();
             },
-            
-            getTotalPages: function() {
-                return totalPages;
+
+            applyZoom() {
+                const canvas = document.getElementById('pdfCanvas');
+                canvas.style.transform = `scale(${this.zoomLevel})`;
+                canvas.style.transformOrigin = 'center center';
             },
-            
-            getScale: function() {
-                return scale;
+
+            // UI updates
+            updatePageIndicator() {
+                const indicator = document.getElementById('pageIndicator');
+                indicator.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+                
+                document.getElementById('prevBtn').disabled = this.currentPage <= 1;
+                document.getElementById('nextBtn').disabled = this.currentPage >= this.totalPages;
             },
-            
-            isFullView: function() {
-                return isFullView;
+
+            updatePDFInfo(metadata) {
+                const info = document.getElementById('pdfInfo');
+                info.innerHTML = `
+                    <strong>${metadata.title || 'Untitled'}</strong><br>
+                    ${metadata.pages} pages
+                `;
             },
-            
-            isInitialized: function() {
-                return isInitialized;
+
+            updateStatus(message, type) {
+                const statusBar = document.getElementById('statusBar');
+                statusBar.textContent = message;
+                statusBar.className = `status-bar status-${type}`;
             },
-            
-            // Properties for external access
-            currentPage: pageNum,
-            totalPages: totalPages
-        };
-        
-        // Update properties when they change
-        function updateSpectaclesAPI() {
-            if (window.spectaclesPDF) {
-                window.spectaclesPDF.currentPage = pageNum;
-                window.spectaclesPDF.totalPages = totalPages;
+
+            showLoading() {
+                document.getElementById('loadingIndicator').style.display = 'block';
+            },
+
+            hideLoading() {
+                document.getElementById('loadingIndicator').style.display = 'none';
             }
-        }
-        
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing PDF viewer...');
-            initPDFViewer();
-        });
-        
-        // Expose for debugging
-        window.debug = {
-            showThumbnail: showThumbnailView,
-            showFull: showFullView,
-            nextPage: nextPage,
-            prevPage: previousPage,
-            getCurrentState: () => ({
-                isFullView,
-                isInitialized,
-                pageNum,
-                totalPages,
-                scale
-            })
         };
-        
-        // Handle visibility changes
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                console.log('Page hidden');
-            } else {
-                console.log('Page visible');
-            }
+
+        // Expose to window for Spectacles controller
+        window.spectaclesPDF = spectaclesPDF;
+        window.spectaclesConnected = false;
+        window.spectaclesControllerState = 'thumbnail';
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('=== Spectacles PDF Viewer Ready ===');
+            spectaclesPDF.init();
         });
-        
-        console.log('Spectacles PDF Viewer script loaded');
     </script>
 </body>
 </html>
