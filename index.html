@@ -205,7 +205,7 @@
     <div id="gestureIndicator"></div>
     <div id="panModeIndicator">🖐️ PAN MODE - Drag to move</div>
     <div id="connectionStatus" title="Gesture System Active"></div>
-    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ ←Prev →Next | 2-Tap: Pan Mode</div>
+    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ →Prev ←Next | 2-Tap: Pan Mode</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
@@ -492,13 +492,13 @@
         }
         
         function handleSwipeLeft() {
-            // Previous page
-            prevPage();
+            // Next page
+            nextPage();
         }
         
         function handleSwipeRight() {
-            // Next page
-            nextPage();
+            // Previous page
+            prevPage();
         }
         
         // === PAN MODE ===
