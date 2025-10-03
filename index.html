@@ -21,6 +21,7 @@
             touch-action: none;
         }
         
+        /*         
         #pdfContainer { 
             width: 100vw; 
             height: 100vh;
@@ -30,7 +31,6 @@
             overflow: hidden;
             position: relative;
         }
-        
         canvas { 
             display: block;
             box-shadow: 0 8px 32px rgba(0,0,0,0.8);
@@ -38,7 +38,26 @@
             max-height: 100vh;
             border-radius: 8px;
             background: white;
+        } */
+
+        #pdfContainer {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;  /* Allow scrolling when zoomed */
+            position: relative;
         }
+        
+        canvas {
+            display: block;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+            /* Remove max-width and max-height constraints */
+            border-radius: 8px;
+            background: white;
+        }
+
         
         #statusBar {
             position: fixed;
