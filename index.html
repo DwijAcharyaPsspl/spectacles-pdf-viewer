@@ -122,11 +122,11 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.9);
             color: white;
-            padding: 25px 50px;
+            padding: 30px 60px;
             border-radius: 50px;
-            font-size: 32px;
+            font-size: 48px;
             font-weight: bold;
             opacity: 0;
             transition: opacity 0.2s ease-in-out;
@@ -186,6 +186,21 @@
             z-index: 100;
             opacity: 0.7;
         }
+
+        #debugInfo {
+            position: fixed;
+            top: 70px;
+            left: 410px;
+            background: rgba(0,0,0,0.8);
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 11px;
+            z-index: 150;
+            max-width: 300px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -205,12 +220,13 @@
     <div id="gestureIndicator"></div>
     <div id="panModeIndicator">🖐️ PAN MODE - Drag to move</div>
     <div id="connectionStatus" title="Gesture System Active"></div>
-    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ ←Prev →Next | Hold 1s: Pan Mode</div>
+    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ ←Next →Prev | Hold 2s: Pan</div>
+    <div id="debugInfo"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <script>
-        console.log('🚀 PDF Viewer - Enhanced Gesture Detection');
+        console.log('🚀 PDF Viewer - Spectacles Optimized');
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = 
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -226,21 +242,25 @@
         let panModeTimeout = null;
         
         let lastActionTime = 0;
-        const actionDebounceMs = 400;
+        const actionDebounceMs = 300;
         
-        // Enhanced gesture detection
+        // SPECTACLES-OPTIMIZED THRESHOLDS
+        // Much more sensitive for Spectacles touchpad
         let touchStartX = 0;
         let touchStartY = 0;
         let touchStartTime = 0;
         let hasMoved = false;
         let movementDistance = 0;
         
-        // Thresholds - CAREFULLY TUNED
-        const swipeThreshold = 50;           // Minimum distance for swipe
-        const swipeTimeLimit = 500;          // Maximum time for swipe
-        const tapMovementThreshold = 15;     // Max movement for tap (increased)
-        const longPressTime = 800;           // Time to activate pan mode (increased)
-        const minSwipeVelocity = 0.3;        // Minimum pixels per ms
+        // VERY RELAXED thresholds for Spectacles
+        const swipeThreshold = 25;           // Lower threshold - easier to trigger
+        const swipeTimeLimit = 1000;         // More time allowed for swipe
+        const tapMovementThreshold = 20;     // Larger tap area
+        const longPressTime = 1500;          // Longer hold time to avoid accidents
+        const minSwipeVelocity = 0.1;        // Much lower velocity requirement
+        
+        // Direction bias - require more movement in primary direction
+        const directionRatio = 1.3;          // Primary direction must be 30% stronger
         
         // Pan mode
         let isPanMode = false;
@@ -251,6 +271,10 @@
         let isPanning = false;
         let lastPanX = 0;
         let lastPanY = 0;
+        
+        // Debug mode
+        let debugMode = true;
+        let gestureLog = [];
         
         function initCanvas() {
             canvas = document.getElementById('pdf-canvas');
@@ -288,7 +312,7 @@
                 updateStatusBar();
                 
                 hideLoadingScreen();
-                showNotification('✅ Ready! Swipe to navigate');
+                showNotification('✅ Ready! Try swiping');
                 console.log('🎉 PDF ready!');
                 
             } catch (error) {
@@ -369,35 +393,93 @@
             return true;
         }
         
+        function updateDebugInfo(info) {
+            if (!debugMode) return;
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML = info;
+        }
+        
         function setupInteraction() {
-            console.log('👆 Setting up enhanced gesture system...');
+            console.log('👆 Setting up Spectacles-optimized gestures...');
             
             const container = document.getElementById('pdfContainer');
             
+            // Use touch events for better Spectacles compatibility
+            container.addEventListener('touchstart', handleTouchStart, { passive: false });
+            container.addEventListener('touchmove', handleTouchMove, { passive: false });
+            container.addEventListener('touchend', handleTouchEnd, { passive: false });
+            container.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+            
+            // Also keep pointer events as fallback
             container.addEventListener('pointerdown', handlePointerDown);
             container.addEventListener('pointermove', handlePointerMove);
             container.addEventListener('pointerup', handlePointerUp);
             container.addEventListener('pointercancel', handlePointerCancel);
             
-            console.log('✅ Enhanced gestures enabled');
-            console.log('🔹 Swipe DOWN = Zoom Out');
-            console.log('🔹 Swipe UP = Zoom In');
-            console.log('🔹 Swipe LEFT = Previous Page');
-            console.log('🔹 Swipe RIGHT = Next Page');
-            console.log('🔹 Hold 1 second = Toggle Pan Mode');
+            console.log('✅ Spectacles gestures enabled');
+            console.log('🔹 VERY LOW thresholds for easy swiping');
+            console.log('🔹 Swipe threshold: ' + swipeThreshold + 'px');
+            console.log('🔹 Time limit: ' + swipeTimeLimit + 'ms');
+        }
+        
+        function handleTouchStart(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                handleGestureStart(touch.clientX, touch.clientY);
+            }
+        }
+        
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                handleGestureMove(touch.clientX, touch.clientY);
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            if (e.changedTouches.length > 0) {
+                const touch = e.changedTouches[0];
+                handleGestureEnd(touch.clientX, touch.clientY);
+            }
+        }
+        
+        function handleTouchCancel(e) {
+            e.preventDefault();
+            handleGestureCancel();
         }
         
         function handlePointerDown(e) {
+            handleGestureStart(e.clientX, e.clientY);
+        }
+        
+        function handlePointerMove(e) {
+            handleGestureMove(e.clientX, e.clientY);
+        }
+        
+        function handlePointerUp(e) {
+            handleGestureEnd(e.clientX, e.clientY);
+        }
+        
+        function handlePointerCancel(e) {
+            handleGestureCancel();
+        }
+        
+        // Unified gesture handlers
+        function handleGestureStart(x, y) {
             isPointerDown = true;
-            touchStartX = e.clientX;
-            touchStartY = e.clientY;
+            touchStartX = x;
+            touchStartY = y;
             touchStartTime = Date.now();
-            lastPanX = e.clientX;
-            lastPanY = e.clientY;
+            lastPanX = x;
+            lastPanY = y;
             hasMoved = false;
             movementDistance = 0;
             
-            console.log('👇 Pointer down at:', touchStartX, touchStartY, '| Pan mode:', isPanMode);
+            console.log('👇 Gesture start:', x.toFixed(1), y.toFixed(1));
+            updateDebugInfo('START<br>X: ' + x.toFixed(1) + '<br>Y: ' + y.toFixed(1));
             
             // Clear any existing long press timer
             if (longPressTimer) {
@@ -407,26 +489,30 @@
             // Only start long press timer if NOT in pan mode
             if (!isPanMode) {
                 longPressTimer = setTimeout(() => {
-                    // Check if finger hasn't moved much
                     if (!hasMoved && movementDistance < tapMovementThreshold) {
-                        console.log('⏱️ Long press detected - toggling pan mode');
+                        console.log('⏱️ Long press detected');
                         togglePanMode();
-                        // Vibrate if available
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
                     }
                 }, longPressTime);
             }
         }
         
-        function handlePointerMove(e) {
+        function handleGestureMove(x, y) {
             if (!isPointerDown) return;
             
-            const deltaX = e.clientX - touchStartX;
-            const deltaY = e.clientY - touchStartY;
+            const deltaX = x - touchStartX;
+            const deltaY = y - touchStartY;
             const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             movementDistance = totalMovement;
+            
+            // Update debug info
+            updateDebugInfo(
+                'MOVE<br>' +
+                'ΔX: ' + deltaX.toFixed(1) + '<br>' +
+                'ΔY: ' + deltaY.toFixed(1) + '<br>' +
+                'Dist: ' + totalMovement.toFixed(1) + '<br>' +
+                'Threshold: ' + swipeThreshold
+            );
             
             // Mark as moved if exceeds tap threshold
             if (totalMovement > tapMovementThreshold) {
@@ -441,20 +527,20 @@
             
             if (isPanMode && hasMoved) {
                 // Pan the document
-                const panDeltaX = e.clientX - lastPanX;
-                const panDeltaY = e.clientY - lastPanY;
+                const panDeltaX = x - lastPanX;
+                const panDeltaY = y - lastPanY;
                 
                 const container = document.getElementById('pdfContainer');
                 container.scrollLeft -= panDeltaX;
                 container.scrollTop -= panDeltaY;
                 
-                lastPanX = e.clientX;
-                lastPanY = e.clientY;
+                lastPanX = x;
+                lastPanY = y;
                 isPanning = true;
             }
         }
         
-        function handlePointerUp(e) {
+        function handleGestureEnd(x, y) {
             if (!isPointerDown) return;
             
             // Clear long press timer
@@ -465,18 +551,30 @@
             
             isPointerDown = false;
             
-            const touchEndX = e.clientX;
-            const touchEndY = e.clientY;
             const touchEndTime = Date.now();
-            
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = touchEndY - touchStartY;
+            const deltaX = x - touchStartX;
+            const deltaY = y - touchStartY;
             const deltaTime = touchEndTime - touchStartTime;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const velocity = distance / Math.max(deltaTime, 1);
             
-            console.log('👆 Pointer up - ΔX:', deltaX.toFixed(1), 'ΔY:', deltaY.toFixed(1), 
-                       'Distance:', distance.toFixed(1), 'Time:', deltaTime + 'ms', 
-                       'Moved:', hasMoved);
+            const absDeltaX = Math.abs(deltaX);
+            const absDeltaY = Math.abs(deltaY);
+            
+            console.log('👆 Gesture end:');
+            console.log('   ΔX:', deltaX.toFixed(1), 'ΔY:', deltaY.toFixed(1));
+            console.log('   Distance:', distance.toFixed(1), 'Time:', deltaTime + 'ms');
+            console.log('   Velocity:', velocity.toFixed(3), 'px/ms');
+            console.log('   Moved:', hasMoved, 'Panning:', isPanning);
+            
+            updateDebugInfo(
+                'END<br>' +
+                'ΔX: ' + deltaX.toFixed(1) + '<br>' +
+                'ΔY: ' + deltaY.toFixed(1) + '<br>' +
+                'Dist: ' + distance.toFixed(1) + '<br>' +
+                'Time: ' + deltaTime + 'ms<br>' +
+                'Vel: ' + velocity.toFixed(3)
+            );
             
             // If we were panning, don't process as gesture
             if (isPanning) {
@@ -485,62 +583,80 @@
                 return;
             }
             
-            // If in pan mode and just tapped (no movement), exit pan mode
+            // If in pan mode and just tapped, exit pan mode
             if (isPanMode && !hasMoved && distance < tapMovementThreshold) {
-                console.log('👆 Tap in pan mode - exiting pan mode');
+                console.log('👆 Tap in pan mode - exiting');
                 togglePanMode();
                 return;
             }
             
-            // Ignore if not moved enough (it's a tap, not a swipe)
+            // Check if it's a valid swipe - VERY LENIENT
             if (distance < swipeThreshold) {
-                console.log('👆 Tap detected (not a swipe) - distance:', distance.toFixed(1));
+                console.log('👆 Too small for swipe:', distance.toFixed(1), 'px');
+                showNotification('Swipe longer! (' + distance.toFixed(0) + 'px)');
                 return;
             }
             
-            // Ignore if took too long
             if (deltaTime > swipeTimeLimit) {
-                console.log('🐌 Movement too slow for swipe:', deltaTime + 'ms');
+                console.log('🐌 Too slow for swipe:', deltaTime + 'ms');
+                showNotification('Swipe faster! (' + deltaTime + 'ms)');
                 return;
             }
             
-            // Calculate velocity (pixels per millisecond)
-            const velocity = distance / deltaTime;
-            console.log('⚡ Velocity:', velocity.toFixed(3), 'px/ms');
-            
-            // Check minimum velocity
             if (velocity < minSwipeVelocity) {
-                console.log('🐢 Velocity too low for swipe:', velocity.toFixed(3));
+                console.log('🐢 Velocity too low:', velocity.toFixed(3));
+                showNotification('Swipe quicker!');
+                return;
+            }
+            
+            // Determine direction with bias check
+            // The primary direction should be significantly stronger
+            let direction = null;
+            
+            if (absDeltaX > absDeltaY) {
+                // Horizontal swipe candidate
+                if (absDeltaX > absDeltaY * directionRatio) {
+                    direction = deltaX > 0 ? 'RIGHT' : 'LEFT';
+                }
+            } else {
+                // Vertical swipe candidate
+                if (absDeltaY > absDeltaX * directionRatio) {
+                    direction = deltaY > 0 ? 'DOWN' : 'UP';
+                }
+            }
+            
+            if (!direction) {
+                console.log('❓ Diagonal swipe - unclear direction');
+                showNotification('Swipe more clearly!');
                 return;
             }
             
             // Valid swipe detected!
-            console.log('✅ Valid swipe detected!');
+            console.log('✅✅✅ SWIPE ' + direction + ' DETECTED!');
+            showNotification('SWIPE ' + direction + '! ' + distance.toFixed(0) + 'px');
             
-            // Determine primary direction
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                // Horizontal swipe
-                if (deltaX > 0) {
-                    console.log('👉 Swipe RIGHT (distance:', distance.toFixed(1), ')');
-                    handleSwipeRight();
-                } else {
-                    console.log('👈 Swipe LEFT (distance:', distance.toFixed(1), ')');
+            switch(direction) {
+                case 'LEFT':
+                    console.log('👈 Executing: Next Page');
                     handleSwipeLeft();
-                }
-            } else {
-                // Vertical swipe
-                if (deltaY > 0) {
-                    console.log('👇 Swipe DOWN (distance:', distance.toFixed(1), ')');
-                    handleSwipeDown();
-                } else {
-                    console.log('👆 Swipe UP (distance:', distance.toFixed(1), ')');
+                    break;
+                case 'RIGHT':
+                    console.log('👉 Executing: Previous Page');
+                    handleSwipeRight();
+                    break;
+                case 'UP':
+                    console.log('👆 Executing: Zoom In');
                     handleSwipeUp();
-                }
+                    break;
+                case 'DOWN':
+                    console.log('👇 Executing: Zoom Out');
+                    handleSwipeDown();
+                    break;
             }
         }
         
-        function handlePointerCancel(e) {
-            console.log('🚫 Pointer cancelled');
+        function handleGestureCancel() {
+            console.log('🚫 Gesture cancelled');
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
@@ -576,7 +692,7 @@
             
             if (isPanMode) {
                 console.log('🖐️ Pan mode ENABLED');
-                showNotification('🖐️ Pan Mode ON - Drag to move');
+                showNotification('🖐️ Pan Mode ON');
                 panIndicator.classList.add('show');
             } else {
                 console.log('🚫 Pan mode DISABLED');
@@ -591,7 +707,7 @@
             if (!canPerformAction()) return false;
             
             console.log('🎯 nextPage() called');
-            showGestureIndicator('▶️');
+            showGestureIndicator('▶️ NEXT');
             
             if (!pdfDoc) {
                 console.warn('⚠️ PDF not loaded yet');
@@ -609,7 +725,7 @@
             console.log('▶️ Next page:', currentPage + '/' + pdfDoc.numPages);
             renderPage(currentPage);
             updateStatusBar();
-            showNotification('Page ' + currentPage + ' of ' + pdfDoc.numPages);
+            showNotification('Page ' + currentPage + ' / ' + pdfDoc.numPages);
             return true;
         };
         
@@ -617,7 +733,7 @@
             if (!canPerformAction()) return false;
             
             console.log('🎯 prevPage() called');
-            showGestureIndicator('◀️');
+            showGestureIndicator('◀️ PREV');
             
             if (!pdfDoc) {
                 console.warn('⚠️ PDF not loaded yet');
@@ -635,7 +751,7 @@
             console.log('◀️ Previous page:', currentPage + '/' + pdfDoc.numPages);
             renderPage(currentPage);
             updateStatusBar();
-            showNotification('Page ' + currentPage + ' of ' + pdfDoc.numPages);
+            showNotification('Page ' + currentPage + ' / ' + pdfDoc.numPages);
             return true;
         };
         
@@ -643,7 +759,7 @@
             if (!canPerformAction()) return false;
             
             console.log('🎯 zoomIn() called');
-            showGestureIndicator('🔍+');
+            showGestureIndicator('🔍+ ZOOM IN');
             
             if (!pdfDoc) return false;
             
@@ -666,7 +782,7 @@
             if (!canPerformAction()) return false;
             
             console.log('🎯 zoomOut() called');
-            showGestureIndicator('🔍-');
+            showGestureIndicator('🔍- ZOOM OUT');
             
             if (!pdfDoc) return false;
             
@@ -687,7 +803,7 @@
 
         window.testConnection = function() {
             console.log('🔗 Connection test');
-            showNotification('✅ Connected');
+            showNotification('✅ Connected to Spectacles!');
             return true;
         };
         
@@ -710,7 +826,7 @@
             
             notificationTimeout = setTimeout(() => {
                 notif.classList.remove('show');
-            }, 2000);
+            }, 2500);
         }
 
         function showGestureIndicator(symbol) {
@@ -722,7 +838,7 @@
             
             gestureTimeout = setTimeout(() => {
                 indicator.classList.remove('show');
-            }, 600);
+            }, 800);
         }
 
         function updateLoadingText(text) {
@@ -749,13 +865,12 @@
             }, 500);
         });
         
-        console.log('✅ PDF Viewer Ready - Enhanced Gestures!');
-        console.log('🔹 Swipe DOWN = Zoom Out');
-        console.log('🔹 Swipe UP = Zoom In');
-        console.log('🔹 Swipe LEFT = Next Page');
-        console.log('🔹 Swipe RIGHT = Previous Page');
-        console.log('🔹 Hold 1 second = Toggle Pan Mode');
-        console.log('🔹 Tap in Pan Mode = Exit Pan Mode');
+        console.log('✅ PDF Viewer Ready - SPECTACLES OPTIMIZED!');
+        console.log('🔹 Swipe threshold: ' + swipeThreshold + 'px (very low)');
+        console.log('🔹 Time limit: ' + swipeTimeLimit + 'ms (generous)');
+        console.log('🔹 Min velocity: ' + minSwipeVelocity + ' px/ms (very low)');
+        console.log('🔹 Touch + Pointer events both active');
+        console.log('🔹 Debug info visible on screen');
         
     </script>
 </body>
