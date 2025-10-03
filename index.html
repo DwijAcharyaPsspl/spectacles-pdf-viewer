@@ -146,63 +146,65 @@
             box-shadow: 0 0 10px rgba(68,255,68,0.6);
         }
 
-        /* Gesture zones - visible on Spectacles for debugging */
+        /* Edge gesture zones - OUTSIDE the PDF viewing area */
         .gesture-zone {
             position: fixed;
-            background: rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.4);
+            background: transparent;
+            z-index: 10;
             cursor: pointer;
-            transition: all 0.2s;
-            z-index: 50;
+            transition: background 0.3s;
         }
 
         .gesture-zone:hover {
-            background: rgba(102, 126, 234, 0.3);
-            border-color: rgba(102, 126, 234, 0.8);
+            background: rgba(102, 126, 234, 0.1);
         }
 
         .gesture-zone.active {
-            background: rgba(102, 126, 234, 0.5);
-            transform: scale(0.95);
+            background: rgba(102, 126, 234, 0.3);
         }
 
         #leftZone {
             left: 0;
-            top: 0;
-            width: 30%;
-            height: 100%;
+            top: 20%;
+            width: 15%;
+            height: 60%;
         }
 
         #rightZone {
             right: 0;
-            top: 0;
-            width: 30%;
-            height: 100%;
+            top: 20%;
+            width: 15%;
+            height: 60%;
         }
 
         #topZone {
             top: 0;
-            left: 30%;
-            width: 40%;
-            height: 25%;
+            left: 20%;
+            width: 60%;
+            height: 10%;
         }
 
         #bottomZone {
             bottom: 0;
-            left: 30%;
-            width: 40%;
-            height: 25%;
+            left: 20%;
+            width: 60%;
+            height: 10%;
         }
 
-        /* Arrow indicators */
-        .zone-label {
+        /* Subtle hints */
+        .zone-hint {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 48px;
-            opacity: 0.3;
+            font-size: 24px;
+            opacity: 0.2;
             pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .gesture-zone:hover .zone-hint {
+            opacity: 0.6;
         }
     </style>
 </head>
@@ -216,18 +218,18 @@
         <canvas id="pdf-canvas"></canvas>
     </div>
     
-    <!-- Visible gesture zones for Spectacles pointer interaction -->
+    <!-- Edge gesture zones - minimal interference -->
     <div id="leftZone" class="gesture-zone">
-        <div class="zone-label">◀</div>
+        <div class="zone-hint">◀</div>
     </div>
     <div id="rightZone" class="gesture-zone">
-        <div class="zone-label">▶</div>
+        <div class="zone-hint">▶</div>
     </div>
     <div id="topZone" class="gesture-zone">
-        <div class="zone-label">+</div>
+        <div class="zone-hint">+</div>
     </div>
     <div id="bottomZone" class="gesture-zone">
-        <div class="zone-label">-</div>
+        <div class="zone-hint">-</div>
     </div>
     
     <div id="statusBar">Ready for Gestures</div>
@@ -238,7 +240,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <script>
-        console.log('🚀 PDF Viewer for Spectacles - Pointer Edition');
+        console.log('🚀 PDF Viewer for Spectacles - Hybrid Edition');
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = 
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -251,6 +253,17 @@
         let ctx = null;
         let notificationTimeout = null;
         let gestureTimeout = null;
+        
+        // Debouncing to prevent multi-page jumps
+        let lastActionTime = 0;
+        const actionDebounceMs = 500; // Prevent action within 500ms
+        
+        // Swipe detection
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+        const swipeThreshold = 80; // pixels
+        const swipeTimeLimit = 500; // ms
         
         function initCanvas() {
             canvas = document.getElementById('pdf-canvas');
@@ -289,8 +302,8 @@
                 updateStatusBar();
                 
                 hideLoadingScreen();
-                showNotification('✅ Click Zones to Navigate');
-                console.log('🎉 PDF ready! Click zones to navigate.');
+                showNotification('✅ Swipe or Click Edges');
+                console.log('🎉 PDF ready!');
                 
             } catch (error) {
                 console.error('❌ PDF Loading Error:', error);
@@ -351,59 +364,150 @@
             }
         }
 
-        // === SPECTACLES POINTER-BASED INTERACTION ===
+        // === DEBOUNCE HELPER ===
+        function canPerformAction() {
+            const now = Date.now();
+            if (now - lastActionTime < actionDebounceMs) {
+                console.log('⏳ Action debounced - too soon');
+                return false;
+            }
+            lastActionTime = now;
+            return true;
+        }
+
+        // === HYBRID INTERACTION: SWIPES + EDGE CLICKS ===
         
-        function setupGestureZones() {
-            console.log('👆 Setting up Spectacles pointer zones...');
+        function setupInteraction() {
+            console.log('👆 Setting up hybrid interaction...');
             
+            // Swipe detection on entire document
+            document.addEventListener('pointerdown', handlePointerDown, { passive: false });
+            document.addEventListener('pointermove', handlePointerMove, { passive: false });
+            document.addEventListener('pointerup', handlePointerUp, { passive: false });
+            
+            // Edge zone clicks
+            setupEdgeZones();
+            
+            console.log('✅ Swipe and click detection enabled');
+        }
+        
+        let isPointerDown = false;
+        let hasMoved = false;
+        
+        function handlePointerDown(e) {
+            isPointerDown = true;
+            hasMoved = false;
+            touchStartX = e.clientX;
+            touchStartY = e.clientY;
+            touchStartTime = Date.now();
+            console.log('👇 Pointer down:', touchStartX, touchStartY);
+        }
+        
+        function handlePointerMove(e) {
+            if (!isPointerDown) return;
+            
+            const deltaX = Math.abs(e.clientX - touchStartX);
+            const deltaY = Math.abs(e.clientY - touchStartY);
+            
+            if (deltaX > 10 || deltaY > 10) {
+                hasMoved = true;
+            }
+        }
+        
+        function handlePointerUp(e) {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+            
+            const touchEndX = e.clientX;
+            const touchEndY = e.clientY;
+            const touchEndTime = Date.now();
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const deltaTime = touchEndTime - touchStartTime;
+            
+            console.log('👆 Pointer up - Delta:', deltaX, deltaY, 'Time:', deltaTime + 'ms');
+            
+            // Only process as swipe if moved significantly
+            if (!hasMoved || Math.abs(deltaX) < swipeThreshold && Math.abs(deltaY) < swipeThreshold) {
+                console.log('👆 Not a swipe (too small)');
+                return;
+            }
+            
+            // Check swipe time
+            if (deltaTime > swipeTimeLimit) {
+                console.log('👆 Not a swipe (too slow)');
+                return;
+            }
+            
+            // Determine direction
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal swipe
+                if (deltaX > swipeThreshold) {
+                    console.log('👉 Swipe RIGHT detected');
+                    prevPage();
+                } else if (deltaX < -swipeThreshold) {
+                    console.log('👈 Swipe LEFT detected');
+                    nextPage();
+                }
+            } else {
+                // Vertical swipe
+                if (deltaY > swipeThreshold) {
+                    console.log('👇 Swipe DOWN detected');
+                    zoomOut();
+                } else if (deltaY < -swipeThreshold) {
+                    console.log('👆 Swipe UP detected');
+                    zoomIn();
+                }
+            }
+        }
+        
+        function setupEdgeZones() {
             const leftZone = document.getElementById('leftZone');
             const rightZone = document.getElementById('rightZone');
             const topZone = document.getElementById('topZone');
             const bottomZone = document.getElementById('bottomZone');
             
-            // Left zone - Previous page
-            setupZoneInteraction(leftZone, prevPage, '◀️ Previous');
+            // Use click events for zones (not pointer events to avoid conflict)
+            leftZone.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🎯 Left zone clicked');
+                visualFeedback(leftZone);
+                prevPage();
+            });
             
-            // Right zone - Next page
-            setupZoneInteraction(rightZone, nextPage, '▶️ Next');
+            rightZone.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🎯 Right zone clicked');
+                visualFeedback(rightZone);
+                nextPage();
+            });
             
-            // Top zone - Zoom in
-            setupZoneInteraction(topZone, zoomIn, '🔍+ Zoom In');
+            topZone.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🎯 Top zone clicked');
+                visualFeedback(topZone);
+                zoomIn();
+            });
             
-            // Bottom zone - Zoom out
-            setupZoneInteraction(bottomZone, zoomOut, '🔍- Zoom Out');
-            
-            console.log('✅ Pointer zones configured for Spectacles');
+            bottomZone.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🎯 Bottom zone clicked');
+                visualFeedback(bottomZone);
+                zoomOut();
+            });
         }
         
-        function setupZoneInteraction(zone, action, label) {
-            // Multiple event types for maximum compatibility
-            const events = ['click', 'pointerdown', 'pointerup', 'touchstart', 'mousedown'];
-            
-            events.forEach(eventType => {
-                zone.addEventListener(eventType, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('🎯 Zone activated:', label, 'via', eventType);
-                    
-                    // Visual feedback
-                    zone.classList.add('active');
-                    setTimeout(() => zone.classList.remove('active'), 200);
-                    
-                    // Execute action
-                    action();
-                }, { passive: false });
-            });
-            
-            // Hover effect
-            zone.addEventListener('pointerenter', () => {
-                console.log('👆 Hovering:', label);
-            });
+        function visualFeedback(zone) {
+            zone.classList.add('active');
+            setTimeout(() => zone.classList.remove('active'), 300);
         }
 
         // === NAVIGATION FUNCTIONS ===
         
         window.nextPage = function() {
+            if (!canPerformAction()) return false;
+            
             console.log('🎯 nextPage() called');
             showGestureIndicator('▶️');
             
@@ -428,6 +532,8 @@
         };
         
         window.prevPage = function() {
+            if (!canPerformAction()) return false;
+            
             console.log('🎯 prevPage() called');
             showGestureIndicator('◀️');
             
@@ -452,6 +558,8 @@
         };
         
         window.zoomIn = function() {
+            if (!canPerformAction()) return false;
+            
             console.log('🎯 zoomIn() called');
             showGestureIndicator('🔍+');
             
@@ -473,6 +581,8 @@
         };
         
         window.zoomOut = function() {
+            if (!canPerformAction()) return false;
+            
             console.log('🎯 zoomOut() called');
             showGestureIndicator('🔍-');
             
@@ -498,15 +608,6 @@
             showNotification('✅ Connected');
             return true;
         };
-
-        // Toggle debug zones visibility
-        window.toggleZones = function() {
-            const zones = document.querySelectorAll('.gesture-zone');
-            zones.forEach(zone => {
-                const currentOpacity = window.getComputedStyle(zone).opacity;
-                zone.style.opacity = currentOpacity === '0' ? '0.05' : '0';
-            });
-        };
         
         // === UI HELPER FUNCTIONS ===
         
@@ -514,7 +615,7 @@
             if (!pdfDoc) return;
             
             const statusText = 'Page ' + currentPage + ' of ' + pdfDoc.numPages + 
-                             ' • ' + Math.round(scale * 100) + '% • Click Zones';
+                             ' • ' + Math.round(scale * 100) + '%';
             document.getElementById('statusBar').textContent = statusText;
         }
         
@@ -559,18 +660,18 @@
         window.addEventListener('load', function() {
             console.log('📱 Window loaded, initializing...');
             initCanvas();
-            setupGestureZones();
+            setupInteraction();
             
             setTimeout(() => {
                 loadPDF();
             }, 500);
         });
         
-        console.log('✅ PDF Viewer Ready for Spectacles!');
-        console.log('📝 Click LEFT zone = Previous Page');
-        console.log('📝 Click RIGHT zone = Next Page');
-        console.log('📝 Click TOP zone = Zoom In');
-        console.log('📝 Click BOTTOM zone = Zoom Out');
+        console.log('✅ PDF Viewer Ready!');
+        console.log('📝 Swipe LEFT or click RIGHT edge = Next Page');
+        console.log('📝 Swipe RIGHT or click LEFT edge = Previous Page');
+        console.log('📝 Swipe UP or click TOP edge = Zoom In');
+        console.log('📝 Swipe DOWN or click BOTTOM edge = Zoom Out');
         
     </script>
 </body>
