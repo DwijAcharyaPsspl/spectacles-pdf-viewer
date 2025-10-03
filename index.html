@@ -205,12 +205,12 @@
     <div id="gestureIndicator"></div>
     <div id="panModeIndicator">🖐️ PAN MODE - Drag to move</div>
     <div id="connectionStatus" title="Gesture System Active"></div>
-    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ →Prev ←Next | 2-Tap: Pan Mode</div>
+    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ ←Prev →Next | Hold 1s: Pan Mode</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <script>
-        console.log('🚀 PDF Viewer - Directional Gestures Edition');
+        console.log('🚀 PDF Viewer - Enhanced Gesture Detection');
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = 
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -228,17 +228,23 @@
         let lastActionTime = 0;
         const actionDebounceMs = 400;
         
-        // Gesture detection
+        // Enhanced gesture detection
         let touchStartX = 0;
         let touchStartY = 0;
         let touchStartTime = 0;
-        const swipeThreshold = 60;
-        const swipeTimeLimit = 600;
+        let hasMoved = false;
+        let movementDistance = 0;
+        
+        // Thresholds - CAREFULLY TUNED
+        const swipeThreshold = 50;           // Minimum distance for swipe
+        const swipeTimeLimit = 500;          // Maximum time for swipe
+        const tapMovementThreshold = 15;     // Max movement for tap (increased)
+        const longPressTime = 800;           // Time to activate pan mode (increased)
+        const minSwipeVelocity = 0.3;        // Minimum pixels per ms
         
         // Pan mode
         let isPanMode = false;
-        let lastTapTime = 0;
-        const doubleTapDelay = 400;
+        let longPressTimer = null;
         
         // Panning state
         let isPointerDown = false;
@@ -364,20 +370,21 @@
         }
         
         function setupInteraction() {
-            console.log('👆 Setting up directional gesture system...');
+            console.log('👆 Setting up enhanced gesture system...');
             
             const container = document.getElementById('pdfContainer');
             
             container.addEventListener('pointerdown', handlePointerDown);
             container.addEventListener('pointermove', handlePointerMove);
             container.addEventListener('pointerup', handlePointerUp);
+            container.addEventListener('pointercancel', handlePointerCancel);
             
-            console.log('✅ Directional gestures enabled');
-            console.log('📝 Swipe DOWN = Zoom Out');
-            console.log('📝 Swipe UP = Zoom In');
-            console.log('📝 Swipe LEFT = Previous Page');
-            console.log('📝 Swipe RIGHT = Next Page');
-            console.log('📝 Double-tap = Toggle Pan Mode');
+            console.log('✅ Enhanced gestures enabled');
+            console.log('🔹 Swipe DOWN = Zoom Out');
+            console.log('🔹 Swipe UP = Zoom In');
+            console.log('🔹 Swipe LEFT = Previous Page');
+            console.log('🔹 Swipe RIGHT = Next Page');
+            console.log('🔹 Hold 1 second = Toggle Pan Mode');
         }
         
         function handlePointerDown(e) {
@@ -387,32 +394,59 @@
             touchStartTime = Date.now();
             lastPanX = e.clientX;
             lastPanY = e.clientY;
+            hasMoved = false;
+            movementDistance = 0;
             
-            // Check for double-tap
-            const timeSinceLastTap = touchStartTime - lastTapTime;
-            if (timeSinceLastTap < doubleTapDelay && timeSinceLastTap > 50) {
-                console.log('👆👆 Double-tap detected!');
-                togglePanMode();
-                lastTapTime = 0; // Reset to prevent triple-tap
-                isPointerDown = false;
-                return;
+            console.log('👇 Pointer down at:', touchStartX, touchStartY, '| Pan mode:', isPanMode);
+            
+            // Clear any existing long press timer
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
             }
-            lastTapTime = touchStartTime;
             
-            console.log('👇 Pointer down:', touchStartX, touchStartY, 'Pan mode:', isPanMode);
+            // Only start long press timer if NOT in pan mode
+            if (!isPanMode) {
+                longPressTimer = setTimeout(() => {
+                    // Check if finger hasn't moved much
+                    if (!hasMoved && movementDistance < tapMovementThreshold) {
+                        console.log('⏱️ Long press detected - toggling pan mode');
+                        togglePanMode();
+                        // Vibrate if available
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                    }
+                }, longPressTime);
+            }
         }
         
         function handlePointerMove(e) {
             if (!isPointerDown) return;
             
-            if (isPanMode) {
+            const deltaX = e.clientX - touchStartX;
+            const deltaY = e.clientY - touchStartY;
+            const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            movementDistance = totalMovement;
+            
+            // Mark as moved if exceeds tap threshold
+            if (totalMovement > tapMovementThreshold) {
+                hasMoved = true;
+                
+                // Cancel long press if finger moved too much
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+            
+            if (isPanMode && hasMoved) {
                 // Pan the document
-                const deltaX = e.clientX - lastPanX;
-                const deltaY = e.clientY - lastPanY;
+                const panDeltaX = e.clientX - lastPanX;
+                const panDeltaY = e.clientY - lastPanY;
                 
                 const container = document.getElementById('pdfContainer');
-                container.scrollLeft -= deltaX;
-                container.scrollTop -= deltaY;
+                container.scrollLeft -= panDeltaX;
+                container.scrollTop -= panDeltaY;
                 
                 lastPanX = e.clientX;
                 lastPanY = e.clientY;
@@ -422,19 +456,14 @@
         
         function handlePointerUp(e) {
             if (!isPointerDown) return;
+            
+            // Clear long press timer
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            
             isPointerDown = false;
-            
-            // If we were panning, don't process as gesture
-            if (isPanning) {
-                console.log('🖐️ Panning completed');
-                isPanning = false;
-                return;
-            }
-            
-            // If in pan mode but didn't pan, exit on tap
-            if (isPanMode) {
-                return;
-            }
             
             const touchEndX = e.clientX;
             const touchEndY = e.clientY;
@@ -443,61 +472,98 @@
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;
             const deltaTime = touchEndTime - touchStartTime;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
-            console.log('👆 Pointer up - Delta X:', deltaX, 'Y:', deltaY, 'Time:', deltaTime + 'ms');
+            console.log('👆 Pointer up - ΔX:', deltaX.toFixed(1), 'ΔY:', deltaY.toFixed(1), 
+                       'Distance:', distance.toFixed(1), 'Time:', deltaTime + 'ms', 
+                       'Moved:', hasMoved);
             
-            // Check if it's a valid swipe
-            if (Math.abs(deltaX) < swipeThreshold && Math.abs(deltaY) < swipeThreshold) {
-                console.log('👆 Not a swipe (too small)');
+            // If we were panning, don't process as gesture
+            if (isPanning) {
+                console.log('🖐️ Panning completed');
+                isPanning = false;
                 return;
             }
             
+            // If in pan mode and just tapped (no movement), exit pan mode
+            if (isPanMode && !hasMoved && distance < tapMovementThreshold) {
+                console.log('👆 Tap in pan mode - exiting pan mode');
+                togglePanMode();
+                return;
+            }
+            
+            // Ignore if not moved enough (it's a tap, not a swipe)
+            if (distance < swipeThreshold) {
+                console.log('👆 Tap detected (not a swipe) - distance:', distance.toFixed(1));
+                return;
+            }
+            
+            // Ignore if took too long
             if (deltaTime > swipeTimeLimit) {
-                console.log('👆 Not a swipe (too slow)');
+                console.log('🐌 Movement too slow for swipe:', deltaTime + 'ms');
                 return;
             }
+            
+            // Calculate velocity (pixels per millisecond)
+            const velocity = distance / deltaTime;
+            console.log('⚡ Velocity:', velocity.toFixed(3), 'px/ms');
+            
+            // Check minimum velocity
+            if (velocity < minSwipeVelocity) {
+                console.log('🐢 Velocity too low for swipe:', velocity.toFixed(3));
+                return;
+            }
+            
+            // Valid swipe detected!
+            console.log('✅ Valid swipe detected!');
             
             // Determine primary direction
             if (Math.abs(deltaX) > Math.abs(deltaY)) {
                 // Horizontal swipe
                 if (deltaX > 0) {
-                    console.log('👉 Swipe RIGHT detected');
+                    console.log('👉 Swipe RIGHT (distance:', distance.toFixed(1), ')');
                     handleSwipeRight();
                 } else {
-                    console.log('👈 Swipe LEFT detected');
+                    console.log('👈 Swipe LEFT (distance:', distance.toFixed(1), ')');
                     handleSwipeLeft();
                 }
             } else {
                 // Vertical swipe
                 if (deltaY > 0) {
-                    console.log('👇 Swipe DOWN detected');
+                    console.log('👇 Swipe DOWN (distance:', distance.toFixed(1), ')');
                     handleSwipeDown();
                 } else {
-                    console.log('👆 Swipe UP detected');
+                    console.log('👆 Swipe UP (distance:', distance.toFixed(1), ')');
                     handleSwipeUp();
                 }
             }
         }
         
+        function handlePointerCancel(e) {
+            console.log('🚫 Pointer cancelled');
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            isPointerDown = false;
+            isPanning = false;
+        }
+        
         // === DIRECTIONAL GESTURE HANDLERS ===
         
         function handleSwipeDown() {
-            // Zoom OUT
             zoomOut();
         }
         
         function handleSwipeUp() {
-            // Zoom IN
             zoomIn();
         }
         
         function handleSwipeLeft() {
-            // Next page
             nextPage();
         }
         
         function handleSwipeRight() {
-            // Previous page
             prevPage();
         }
         
@@ -514,7 +580,7 @@
                 panIndicator.classList.add('show');
             } else {
                 console.log('🚫 Pan mode DISABLED');
-                showNotification('🚫 Pan Mode OFF');
+                showNotification('✅ Swipe Mode ON');
                 panIndicator.classList.remove('show');
             }
         }
@@ -683,12 +749,13 @@
             }, 500);
         });
         
-        console.log('✅ PDF Viewer Ready - Directional Gestures!');
-        console.log('📝 Swipe DOWN = Zoom Out');
-        console.log('📝 Swipe UP = Zoom In');
-        console.log('📝 Swipe LEFT = Previous Page');
-        console.log('📝 Swipe RIGHT = Next Page');
-        console.log('📝 Double-tap = Toggle Pan Mode (for zoomed content)');
+        console.log('✅ PDF Viewer Ready - Enhanced Gestures!');
+        console.log('🔹 Swipe DOWN = Zoom Out');
+        console.log('🔹 Swipe UP = Zoom In');
+        console.log('🔹 Swipe LEFT = Next Page');
+        console.log('🔹 Swipe RIGHT = Previous Page');
+        console.log('🔹 Hold 1 second = Toggle Pan Mode');
+        console.log('🔹 Tap in Pan Mode = Exit Pan Mode');
         
     </script>
 </body>
