@@ -42,7 +42,6 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.8);
             border-radius: 8px;
             background: white;
-            touch-action: pan-x pan-y;
         }
         
         #statusBar {
@@ -123,16 +122,17 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.85);
             color: white;
-            padding: 20px 40px;
+            padding: 25px 50px;
             border-radius: 50px;
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             opacity: 0;
             transition: opacity 0.2s ease-in-out;
             z-index: 300;
             pointer-events: none;
+            backdrop-filter: blur(10px);
         }
 
         #gestureIndicator.show {
@@ -151,63 +151,40 @@
             box-shadow: 0 0 10px rgba(68,255,68,0.6);
         }
 
-        .gesture-zone {
+        #panModeIndicator {
             position: fixed;
-            background: transparent;
-            z-index: 10;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .gesture-zone:hover {
-            background: rgba(102, 126, 234, 0.1);
-        }
-
-        .gesture-zone.active {
-            background: rgba(102, 126, 234, 0.3);
-        }
-
-        #leftZone {
-            left: 0;
-            top: 20%;
-            width: 15%;
-            height: 60%;
-        }
-
-        #rightZone {
-            right: 0;
-            top: 20%;
-            width: 15%;
-            height: 60%;
-        }
-
-        #topZone {
-            top: 0;
-            left: 20%;
-            width: 60%;
-            height: 10%;
-        }
-
-        #bottomZone {
-            bottom: 0;
-            left: 20%;
-            width: 60%;
-            height: 10%;
-        }
-
-        .zone-hint {
-            position: absolute;
-            top: 50%;
+            bottom: 80px;
             left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 24px;
-            opacity: 0.2;
+            transform: translateX(-50%);
+            background: rgba(255, 165, 0, 0.9);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
             pointer-events: none;
-            transition: opacity 0.3s;
+            z-index: 200;
+            box-shadow: 0 4px 20px rgba(255, 165, 0, 0.4);
         }
 
-        .gesture-zone:hover .zone-hint {
-            opacity: 0.6;
+        #panModeIndicator.show {
+            opacity: 1;
+        }
+
+        #helpText {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 15px;
+            font-size: 12px;
+            z-index: 100;
+            opacity: 0.7;
         }
     </style>
 </head>
@@ -223,28 +200,17 @@
         </div>
     </div>
     
-    <div id="leftZone" class="gesture-zone">
-        <div class="zone-hint">◀</div>
-    </div>
-    <div id="rightZone" class="gesture-zone">
-        <div class="zone-hint">▶</div>
-    </div>
-    <div id="topZone" class="gesture-zone">
-        <div class="zone-hint">+</div>
-    </div>
-    <div id="bottomZone" class="gesture-zone">
-        <div class="zone-hint">-</div>
-    </div>
-    
     <div id="statusBar">Ready for Gestures</div>
     <div id="notification"></div>
     <div id="gestureIndicator"></div>
+    <div id="panModeIndicator">🖐️ PAN MODE - Drag to move</div>
     <div id="connectionStatus" title="Gesture System Active"></div>
+    <div id="helpText">Swipe: ↓Zoom- ↑Zoom+ ←Prev →Next | 2-Tap: Pan Mode</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <script>
-        console.log('🚀 PDF Viewer for Spectacles - Pan Support Edition');
+        console.log('🚀 PDF Viewer - Directional Gestures Edition');
         
         pdfjsLib.GlobalWorkerOptions.workerSrc = 
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -257,15 +223,28 @@
         let ctx = null;
         let notificationTimeout = null;
         let gestureTimeout = null;
+        let panModeTimeout = null;
         
         let lastActionTime = 0;
-        const actionDebounceMs = 500;
+        const actionDebounceMs = 400;
         
+        // Gesture detection
         let touchStartX = 0;
         let touchStartY = 0;
         let touchStartTime = 0;
-        const swipeThreshold = 80;
-        const swipeTimeLimit = 500;
+        const swipeThreshold = 60;
+        const swipeTimeLimit = 600;
+        
+        // Pan mode
+        let isPanMode = false;
+        let lastTapTime = 0;
+        const doubleTapDelay = 400;
+        
+        // Panning state
+        let isPointerDown = false;
+        let isPanning = false;
+        let lastPanX = 0;
+        let lastPanY = 0;
         
         function initCanvas() {
             canvas = document.getElementById('pdf-canvas');
@@ -303,7 +282,7 @@
                 updateStatusBar();
                 
                 hideLoadingScreen();
-                showNotification('✅ Pan When Zoomed');
+                showNotification('✅ Ready! Swipe to navigate');
                 console.log('🎉 PDF ready!');
                 
             } catch (error) {
@@ -356,7 +335,6 @@
                 await page.render(renderContext).promise;
                 console.log('✅ Page', pageNum, 'rendered successfully');
                 
-                // Center the canvas after rendering
                 centerCanvas();
                 
                 return true;
@@ -371,7 +349,6 @@
 
         function centerCanvas() {
             const container = document.getElementById('pdfContainer');
-            // Scroll to center of content
             container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
             container.scrollTop = (container.scrollHeight - container.clientHeight) / 2;
         }
@@ -387,63 +364,59 @@
         }
         
         function setupInteraction() {
-            console.log('👆 Setting up hybrid interaction...');
+            console.log('👆 Setting up directional gesture system...');
             
-            document.addEventListener('pointerdown', handlePointerDown, { passive: false });
-            document.addEventListener('pointermove', handlePointerMove, { passive: false });
-            document.addEventListener('pointerup', handlePointerUp, { passive: false });
+            const container = document.getElementById('pdfContainer');
             
-            setupEdgeZones();
+            container.addEventListener('pointerdown', handlePointerDown);
+            container.addEventListener('pointermove', handlePointerMove);
+            container.addEventListener('pointerup', handlePointerUp);
             
-            console.log('✅ Swipe, pan, and click detection enabled');
+            console.log('✅ Directional gestures enabled');
+            console.log('📝 Swipe DOWN = Zoom Out');
+            console.log('📝 Swipe UP = Zoom In');
+            console.log('📝 Swipe LEFT = Previous Page');
+            console.log('📝 Swipe RIGHT = Next Page');
+            console.log('📝 Double-tap = Toggle Pan Mode');
         }
         
-        let isPointerDown = false;
-        let hasMoved = false;
-        let isPanning = false;
-        
         function handlePointerDown(e) {
-            if (e.target.classList.contains('gesture-zone') || e.target.classList.contains('zone-hint')) {
-                return;
-            }
-            
             isPointerDown = true;
-            hasMoved = false;
-            isPanning = false;
             touchStartX = e.clientX;
             touchStartY = e.clientY;
             touchStartTime = Date.now();
+            lastPanX = e.clientX;
+            lastPanY = e.clientY;
             
-            const container = document.getElementById('pdfContainer');
-            const isScrollable = container.scrollWidth > container.clientWidth || 
-                               container.scrollHeight > container.clientHeight;
-            
-            if (isScrollable && scale > 1.2) {
-                isPanning = true;
+            // Check for double-tap
+            const timeSinceLastTap = touchStartTime - lastTapTime;
+            if (timeSinceLastTap < doubleTapDelay && timeSinceLastTap > 50) {
+                console.log('👆👆 Double-tap detected!');
+                togglePanMode();
+                lastTapTime = 0; // Reset to prevent triple-tap
+                isPointerDown = false;
+                return;
             }
+            lastTapTime = touchStartTime;
             
-            console.log('👇 Pointer down:', touchStartX, touchStartY, 'isPanning:', isPanning);
+            console.log('👇 Pointer down:', touchStartX, touchStartY, 'Pan mode:', isPanMode);
         }
         
         function handlePointerMove(e) {
             if (!isPointerDown) return;
             
-            const deltaX = e.clientX - touchStartX;
-            const deltaY = e.clientY - touchStartY;
-            
-            if (isPanning) {
-                e.preventDefault();
+            if (isPanMode) {
+                // Pan the document
+                const deltaX = e.clientX - lastPanX;
+                const deltaY = e.clientY - lastPanY;
+                
                 const container = document.getElementById('pdfContainer');
                 container.scrollLeft -= deltaX;
                 container.scrollTop -= deltaY;
-                touchStartX = e.clientX;
-                touchStartY = e.clientY;
-                hasMoved = true;
-                return;
-            }
-            
-            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-                hasMoved = true;
+                
+                lastPanX = e.clientX;
+                lastPanY = e.clientY;
+                isPanning = true;
             }
         }
         
@@ -451,9 +424,15 @@
             if (!isPointerDown) return;
             isPointerDown = false;
             
+            // If we were panning, don't process as gesture
             if (isPanning) {
                 console.log('🖐️ Panning completed');
                 isPanning = false;
+                return;
+            }
+            
+            // If in pan mode but didn't pan, exit on tap
+            if (isPanMode) {
                 return;
             }
             
@@ -465,9 +444,10 @@
             const deltaY = touchEndY - touchStartY;
             const deltaTime = touchEndTime - touchStartTime;
             
-            console.log('👆 Pointer up - Delta:', deltaX, deltaY, 'Time:', deltaTime + 'ms');
+            console.log('👆 Pointer up - Delta X:', deltaX, 'Y:', deltaY, 'Time:', deltaTime + 'ms');
             
-            if (!hasMoved || Math.abs(deltaX) < swipeThreshold && Math.abs(deltaY) < swipeThreshold) {
+            // Check if it's a valid swipe
+            if (Math.abs(deltaX) < swipeThreshold && Math.abs(deltaY) < swipeThreshold) {
                 console.log('👆 Not a swipe (too small)');
                 return;
             }
@@ -477,64 +457,69 @@
                 return;
             }
             
+            // Determine primary direction
             if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > swipeThreshold) {
+                // Horizontal swipe
+                if (deltaX > 0) {
                     console.log('👉 Swipe RIGHT detected');
-                    prevPage();
-                } else if (deltaX < -swipeThreshold) {
+                    handleSwipeRight();
+                } else {
                     console.log('👈 Swipe LEFT detected');
-                    nextPage();
+                    handleSwipeLeft();
                 }
             } else {
-                if (deltaY > swipeThreshold) {
+                // Vertical swipe
+                if (deltaY > 0) {
                     console.log('👇 Swipe DOWN detected');
-                    zoomOut();
-                } else if (deltaY < -swipeThreshold) {
+                    handleSwipeDown();
+                } else {
                     console.log('👆 Swipe UP detected');
-                    zoomIn();
+                    handleSwipeUp();
                 }
             }
         }
         
-        function setupEdgeZones() {
-            const leftZone = document.getElementById('leftZone');
-            const rightZone = document.getElementById('rightZone');
-            const topZone = document.getElementById('topZone');
-            const bottomZone = document.getElementById('bottomZone');
-            
-            leftZone.addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log('🎯 Left zone clicked');
-                visualFeedback(leftZone);
-                prevPage();
-            });
-            
-            rightZone.addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log('🎯 Right zone clicked');
-                visualFeedback(rightZone);
-                nextPage();
-            });
-            
-            topZone.addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log('🎯 Top zone clicked');
-                visualFeedback(topZone);
-                zoomIn();
-            });
-            
-            bottomZone.addEventListener('click', (e) => {
-                e.stopPropagation();
-                console.log('🎯 Bottom zone clicked');
-                visualFeedback(bottomZone);
-                zoomOut();
-            });
+        // === DIRECTIONAL GESTURE HANDLERS ===
+        
+        function handleSwipeDown() {
+            // Zoom OUT
+            zoomOut();
         }
         
-        function visualFeedback(zone) {
-            zone.classList.add('active');
-            setTimeout(() => zone.classList.remove('active'), 300);
+        function handleSwipeUp() {
+            // Zoom IN
+            zoomIn();
         }
+        
+        function handleSwipeLeft() {
+            // Previous page
+            prevPage();
+        }
+        
+        function handleSwipeRight() {
+            // Next page
+            nextPage();
+        }
+        
+        // === PAN MODE ===
+        
+        function togglePanMode() {
+            isPanMode = !isPanMode;
+            
+            const panIndicator = document.getElementById('panModeIndicator');
+            
+            if (isPanMode) {
+                console.log('🖐️ Pan mode ENABLED');
+                showNotification('🖐️ Pan Mode ON - Drag to move');
+                panIndicator.classList.add('show');
+            } else {
+                console.log('🚫 Pan mode DISABLED');
+                showNotification('🚫 Pan Mode OFF');
+                panIndicator.classList.remove('show');
+            }
+        }
+        
+        // === NAVIGATION FUNCTIONS ===
         
         window.nextPage = function() {
             if (!canPerformAction()) return false;
@@ -597,7 +582,7 @@
             if (!pdfDoc) return false;
             
             const oldScale = scale;
-            scale = Math.min(scale * 1.25, 3.0);
+            scale = Math.min(scale * 1.25, 3.5);
             
             if (scale === oldScale) {
                 showNotification('🔍 Max Zoom');
@@ -607,7 +592,7 @@
             console.log('🔍+ Zoom in:', Math.round(scale * 100) + '%');
             renderPage(currentPage);
             updateStatusBar();
-            showNotification('Zoom ' + Math.round(scale * 100) + '% - Pan to explore');
+            showNotification('Zoom ' + Math.round(scale * 100) + '%');
             return true;
         };
         
@@ -640,6 +625,8 @@
             return true;
         };
         
+        // === UI HELPER FUNCTIONS ===
+        
         function updateStatusBar() {
             if (!pdfDoc) return;
             
@@ -669,7 +656,7 @@
             
             gestureTimeout = setTimeout(() => {
                 indicator.classList.remove('show');
-            }, 800);
+            }, 600);
         }
 
         function updateLoadingText(text) {
@@ -684,6 +671,8 @@
             }, 300);
         }
         
+        // === INITIALIZATION ===
+        
         window.addEventListener('load', function() {
             console.log('📱 Window loaded, initializing...');
             initCanvas();
@@ -694,12 +683,12 @@
             }, 500);
         });
         
-        console.log('✅ PDF Viewer Ready with Pan Support!');
-        console.log('📝 Swipe LEFT or click RIGHT edge = Next Page');
-        console.log('📝 Swipe RIGHT or click LEFT edge = Previous Page');
-        console.log('📝 Swipe UP or click TOP edge = Zoom In');
-        console.log('📝 Swipe DOWN or click BOTTOM edge = Zoom Out');
-        console.log('📝 When zoomed: Drag to pan around the document');
+        console.log('✅ PDF Viewer Ready - Directional Gestures!');
+        console.log('📝 Swipe DOWN = Zoom Out');
+        console.log('📝 Swipe UP = Zoom In');
+        console.log('📝 Swipe LEFT = Previous Page');
+        console.log('📝 Swipe RIGHT = Next Page');
+        console.log('📝 Double-tap = Toggle Pan Mode (for zoomed content)');
         
     </script>
 </body>
