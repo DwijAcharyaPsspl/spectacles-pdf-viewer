@@ -230,7 +230,39 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        var pdfDoc = null, currentPage = 1, scale = 1.2, isRendering = false, canvas = null, ctx = null, notificationTimeout = null, gestureTimeout = null, panModeTimeout = null, lastActionTime = 0, actionDebounceMs = 300, touchStartX = 0, touchStartY = 0, touchStartTime = 0, hasMoved = false, movementDistance = 0, swipeThreshold = 25, swipeTimeLimit = 1000, tapMovementThreshold = 20, longPressTime = 1500, minSwipeVelocity = 0.1, directionRatio = 1.3, isPanMode = false, longPressTimer = null, isPointerDown = false, isPanning = false, lastPanX = 0, lastPanY = 0, panOffsetX = 0, panOffsetY = 0, debugMode = true, gestureLog = [];
+        var pdfDoc = null, 
+        currentPage = 1, 
+        scale = 1.2, 
+        isRendering = false, 
+        canvas = null, 
+        ctx = null, 
+        notificationTimeout = null, 
+        gestureTimeout = null, 
+        panModeTimeout = null, 
+        lastActionTime = 0,
+        actionDebounceMs = 300,
+        touchStartX = 0, 
+        touchStartY = 0, 
+        touchStartTime = 0, 
+        hasMoved = false, 
+        movementDistance = 0, 
+        swipeThreshold = 5, 
+        swipeTimeLimit = 100, 
+        tapMovementThreshold = 20, 
+        longPressTime = 1500, 
+        minSwipeVelocity = 0.1, 
+        directionRatio = 1.3, 
+        isPanMode = false, 
+        longPressTimer = null, 
+        isPointerDown = false, 
+        isPanning = false, 
+        lastPanX = 0, 
+        lastPanY = 0, 
+        panOffsetX = 0, 
+        panOffsetY = 0, 
+        debugMode = true, 
+        gestureLog = [];
+        
         function initCanvas() {
             canvas = document.getElementById('pdf-canvas');
             ctx = canvas.getContext('2d');
