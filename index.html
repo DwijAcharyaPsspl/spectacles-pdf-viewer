@@ -286,7 +286,7 @@
                 }
                 pdfDoc = await loadingTask.promise;
                 updateLoadingText('Rendering first page...');
-                await renderPage(currentPage);
+                await renderPage(currentPage, true);
                 updateStatusBar();
                 hideLoadingScreen();
                 showNotification('Ready! Try swiping');
@@ -309,9 +309,10 @@
             }
         }
 
-        async function renderPage(pageNum) {
+        async function renderPage(pageNum, shouldCenter = false) {
             if (isRendering || !pdfDoc)
-                return false; isRendering = true;
+                return false; 
+            isRendering = true;
             try {
                 var page = await pdfDoc.getPage(pageNum);
                 var viewport = page.getViewport({ scale: scale });
@@ -320,7 +321,11 @@
                 canvas.width = viewport.width;
                 var renderContext = { canvasContext: ctx, viewport: viewport };
                 await page.render(renderContext).promise;
-                centerCanvas();
+                if (shouldCenter) {
+                    centerCanvas();
+                } else {
+                    updateCanvasTransform();
+                }
                 return true;
             } catch (error) {
                 return false;
@@ -331,15 +336,16 @@
         }
 
         function centerCanvas() {
-            // panOffsetX = 0;
-            // panOffsetY = 0;
+            panOffsetX = 0;
+            panOffsetY = 0;
             updateCanvasTransform();
         }
 
         function updateCanvasTransform() {
             var wrapper = document.getElementById('canvasWrapper');
             var transform = 'translate(calc(-50% + ' + panOffsetX + 'px), calc(-50% + ' + panOffsetY + 'px)) translateZ(0)';
-            wrapper.style.transform = transform; wrapper.style.webkitTransform = transform;
+            wrapper.style.transform = transform; 
+            wrapper.style.webkitTransform = transform;
         }
 
         function canPerformAction() {
