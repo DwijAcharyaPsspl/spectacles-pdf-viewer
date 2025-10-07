@@ -161,12 +161,12 @@
         }
 
         #leftEdgeFlash {
-            left: 40vh;
+            left: 0;
             background: linear-gradient(to right, rgba(102, 126, 234, 0.8), transparent);
         }
 
         #rightEdgeFlash {
-            right: 40vh;
+            right: 0;
             background: linear-gradient(to left, rgba(102, 126, 234, 0.8), transparent);
         }
 
@@ -732,6 +732,7 @@
                 pdfDoc = await loadingTask.promise;
                 updateLoadingText('Rendering first page...');
                 await renderPage(currentPage, true);
+                pdfjsLib.disableAutoFetch = true; // prevents blurry prefetch render
                 updateStatusBar();
                 hideLoadingScreen();
 
@@ -765,34 +766,58 @@
             isRendering = true;
 
             try {
-                var page = await pdfDoc.getPage(pageNum);
-                var viewport = page.getViewport({ scale: scale });
+                const page = await pdfDoc.getPage(pageNum);
+                const devicePixelRatio = window.devicePixelRatio || 1;
 
-                if (!canvas) return false;
+                // Viewport scaled for both zoom and display density
+                const viewport = page.getViewport({ scale: scale * devicePixelRatio });
 
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                const canvas = document.getElementById('pdf-canvas');
+                const ctx = canvas.getContext('2d', { alpha: false }); // alpha=false gives sharper compositing
 
-                var renderContext = {
+                // Resize internal pixel buffer
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+
+                // Resize CSS size to logical dimensions (no CSS scale blur)
+                canvas.style.width = Math.floor(viewport.width / devicePixelRatio) + "px";
+                canvas.style.height = Math.floor(viewport.height / devicePixelRatio) + "px";
+
+                // Proper transform so PDF.js knows actual resolution
+                const transform = devicePixelRatio !== 1 ? [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0] : null;
+
+                const renderContext = {
                     canvasContext: ctx,
-                    viewport: viewport
+                    transform,
+                    viewport
                 };
+
+                // Clear previous frame before render to avoid GPU interpolation
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 await page.render(renderContext).promise;
 
+                // Center only after drawing finishes
                 if (shouldCenter) {
                     centerCanvas();
                 } else {
                     updateCanvasTransform();
                 }
 
+                // Force browser to use high-quality bitmap sampling
+                canvas.style.imageRendering = "pixelated"; // eliminates soft interpolation on zoom steps
+                canvas.style.transform = "translateZ(0)"; // re-trigger GPU texture update
+
                 return true;
-            } catch (error) {
+            } catch (err) {
+                console.error("PDF render error:", err);
                 return false;
             } finally {
                 isRendering = false;
             }
         }
+
+
 
         function centerCanvas() {
             panOffsetX = 0;
@@ -1013,9 +1038,9 @@
         function handleGestureMove(x, y) {
             if (!isPointerDown) return;
 
-              if (isPanMode && !isPanning) {
-        setPanSmoothness(false);
-    }
+            if (isPanMode && !isPanning) {
+                setPanSmoothness(false);
+            }
 
             var deltaX = x - touchStartX;
             var deltaY = y - touchStartY;
@@ -1076,9 +1101,9 @@
         function handleGestureEnd(x, y) {
             if (!isPointerDown) return;
 
-               if (isPanning) {
-        setPanSmoothness(true);
-    }
+            if (isPanning) {
+                setPanSmoothness(true);
+            }
 
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
@@ -1424,47 +1449,56 @@
             return true;
         };
 
-        window.zoomIn = function () {
-            if (!canPerformAction()) return false;
-            showGestureIndicator('+ ZOOM');
 
-            if (!pdfDoc) return false;
 
+        window.zoomIn = async function () {
+            if (!canPerformAction() || !pdfDoc) return false;
             var oldScale = scale;
             scale = Math.min(scale * config.zoomInFactor, config.maxZoom);
-
-            if (scale === oldScale) {
+             if (scale === oldScale) {
                 showNotification('Max Zoom');
-                pulseZoomIndicator();
                 return false;
             }
-
-            renderPage(currentPage);
+            showGestureIndicator('+ ZOOM');
+            await renderPage(currentPage);
             updateStatusBar();
             showNotification('Zoom ' + Math.round(scale * 100) + '%');
             return true;
         };
 
-        window.zoomOut = function () {
-            if (!canPerformAction()) return false;
-            showGestureIndicator('- ZOOM');
-
-            if (!pdfDoc) return false;
-
+        window.zoomOut = async function () {
+            if (!canPerformAction() || !pdfDoc) return false;
             var oldScale = scale;
             scale = Math.max(scale * config.zoomOutFactor, config.minZoom);
 
             if (scale === oldScale) {
                 showNotification('Min Zoom');
-                pulseZoomIndicator();
                 return false;
             }
-
-            renderPage(currentPage);
+            showGestureIndicator('− ZOOM');
+            await renderPage(currentPage);
             updateStatusBar();
             showNotification('Zoom ' + Math.round(scale * 100) + '%');
             return true;
         };
+
+        async function forceHighResRender() {
+            const wrapper = document.getElementById('canvasWrapper');
+            // temporarily disable any GPU transforms that cause interpolation
+            wrapper.style.willChange = 'auto';
+            wrapper.style.transform = 'translate(-50%, -50%)'; // remove offsets during re-render
+
+            await renderPage(currentPage, true); // full re-render at correct scale
+
+            // reapply translation transforms and GPU optimization
+            wrapper.style.willChange = 'transform';
+            updateCanvasTransform();
+
+            updateStatusBar();
+            showNotification('Zoom ' + Math.round(scale * 100) + '%');
+        }
+
+
 
         // Quick actions
         window.fitToWidth = function () {
