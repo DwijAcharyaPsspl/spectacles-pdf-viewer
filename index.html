@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -114,7 +115,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         #loadingText {
@@ -125,14 +128,14 @@
 
         #gestureIndicator {
             position: fixed;
-            top: 50%;
+            top: 80%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 30px 60px;
+            padding: 15px 30px;
             border-radius: 50px;
-            font-size: 48px;
+            font-size: 20px;
             font-weight: bold;
             opacity: 0;
             transition: opacity 0.2s ease-in-out;
@@ -158,12 +161,12 @@
         }
 
         #leftEdgeFlash {
-            left: 0;
+            left: 40vh;
             background: linear-gradient(to right, rgba(102, 126, 234, 0.8), transparent);
         }
 
         #rightEdgeFlash {
-            right: 0;
+            right: 40vh;
             background: linear-gradient(to left, rgba(102, 126, 234, 0.8), transparent);
         }
 
@@ -216,7 +219,7 @@
             z-index: 50;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
-            background-image: 
+            background-image:
                 repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255, 165, 0, 0.1) 49px, rgba(255, 165, 0, 0.1) 50px),
                 repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255, 165, 0, 0.1) 49px, rgba(255, 165, 0, 0.1) 50px);
         }
@@ -336,14 +339,32 @@
             animation: float 2s ease-in-out infinite;
         }
 
-        .tutorial-item:nth-child(1) .tutorial-icon { animation-delay: 0s; }
-        .tutorial-item:nth-child(2) .tutorial-icon { animation-delay: 0.2s; }
-        .tutorial-item:nth-child(3) .tutorial-icon { animation-delay: 0.4s; }
-        .tutorial-item:nth-child(4) .tutorial-icon { animation-delay: 0.6s; }
+        .tutorial-item:nth-child(1) .tutorial-icon {
+            animation-delay: 0s;
+        }
+
+        .tutorial-item:nth-child(2) .tutorial-icon {
+            animation-delay: 0.2s;
+        }
+
+        .tutorial-item:nth-child(3) .tutorial-icon {
+            animation-delay: 0.4s;
+        }
+
+        .tutorial-item:nth-child(4) .tutorial-icon {
+            animation-delay: 0.6s;
+        }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
         }
 
         .tutorial-label {
@@ -397,8 +418,15 @@
 
         /* Zoom limit pulse */
         @keyframes zoomPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
         }
 
         .zoom-pulse {
@@ -512,16 +540,17 @@
         }
     </style>
 </head>
+
 <body>
     <div id="loadingScreen">
         <div class="spinner"></div>
         <div id="loadingText">Initializing PDF Viewer...</div>
     </div>
-    
+
     <div id="pdfContainer">
         <div id="canvasWrapper"><canvas id="pdf-canvas"></canvas></div>
     </div>
-    
+
     <!-- UI Elements -->
     <div id="statusBar">Ready for Gestures</div>
     <div id="notification"></div>
@@ -530,36 +559,36 @@
     <div id="panModeIndicator">PAN MODE - Drag to move</div>
     <div id="connectionStatus" title="Gesture System Active"></div>
     <div id="panGrid"></div>
-    
+
     <!-- Edge flash feedback -->
     <div id="leftEdgeFlash" class="edge-flash"></div>
     <div id="rightEdgeFlash" class="edge-flash"></div>
-    
+
     <!-- Long press indicator -->
     <div id="longPressIndicator">
         <svg id="longPressProgress" viewBox="0 0 80 80">
             <circle cx="40" cy="40" r="36"></circle>
         </svg>
     </div>
-    
+
     <!-- Gesture trail -->
     <div id="gestureTrail"></div>
-    
+
     <!-- Page preview -->
     <div id="pagePreview">
         <canvas id="preview-canvas"></canvas>
     </div>
-    
+
     <!-- Two-finger indicator -->
     <div id="twoFingerIndicator">Two-Finger Pan Mode</div>
-    
+
     <!-- Quick actions -->
     <div id="quickActions">
         <button class="quick-btn" onclick="fitToWidth()">Fit Width</button>
         <button class="quick-btn" onclick="fitToHeight()">Fit Height</button>
         <button class="quick-btn" onclick="resetZoom()">100%</button>
     </div>
-    
+
     <!-- Tutorial overlay -->
     <div id="tutorialOverlay">
         <div class="tutorial-title">Gesture Controls</div>
@@ -587,13 +616,13 @@
         </div>
         <button id="tutorialSkip">Got it!</button>
     </div>
-    
+
     <div id="debugInfo"></div>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        
+
         // Configuration - More forgiving thresholds
         var config = {
             swipeThreshold: 40,              // Increased from 10px
@@ -611,7 +640,7 @@
             continuousSwipeWindow: 500,      // Time window for fast-flipping
             debugMode: true
         };
-        
+
         // State
         var pdfDoc = null;
         var currentPage = 1;
@@ -623,7 +652,7 @@
         var gestureTimeout = null;
         var panModeTimeout = null;
         var lastActionTime = 0;
-        
+
         // Touch/gesture state
         var touchStartX = 0;
         var touchStartY = 0;
@@ -640,42 +669,52 @@
         var lastPanY = 0;
         var panOffsetX = 0;
         var panOffsetY = 0;
-        
+
         // Two-finger gesture state
         var activeTouches = {};
         var isTwoFingerGesture = false;
         var twoFingerPanActive = false;
         var twoFingerStartDistance = 0;
-        
+
         // Fast-flipping state
         var lastSwipeDirection = null;
         var lastSwipeTime = 0;
-        
+
         // Page preview state
         var previewCanvas = null;
         var previewCtx = null;
         var previewDirection = null;
         var isShowingPreview = false;
-        
+
         // Tutorial state
         var hasSeenTutorial = false;
-        
+
         function initCanvas() {
             canvas = document.getElementById('pdf-canvas');
             ctx = canvas.getContext('2d');
-            
+
             // Initialize preview canvas
             previewCanvas = document.getElementById('preview-canvas');
             previewCtx = previewCanvas.getContext('2d');
-            
+
             console.log('Canvas initialized');
         }
-        
+
+        function setPanSmoothness(enable) {
+            const wrapper = document.getElementById('canvasWrapper');
+            if (enable) {
+                wrapper.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            } else {
+                wrapper.style.transition = 'none';
+            }
+        }
+
+
         async function loadPDF(pdfSource) {
             try {
                 updateLoadingText('Loading PDF document...');
                 var loadingTask;
-                
+
                 if (pdfSource) {
                     if (pdfSource.startsWith('data:') || pdfSource.startsWith('http')) {
                         loadingTask = pdfjsLib.getDocument(pdfSource);
@@ -689,25 +728,25 @@
                     var pdfData = base64ToUint8Array(samplePDF);
                     loadingTask = pdfjsLib.getDocument({ data: pdfData });
                 }
-                
+
                 pdfDoc = await loadingTask.promise;
                 updateLoadingText('Rendering first page...');
                 await renderPage(currentPage, true);
                 updateStatusBar();
                 hideLoadingScreen();
-                
+
                 // Show tutorial on first load and hide it after 4 second
                 if (!hasSeenTutorial) {
                     setTimeout(showTutorial, 500);
                 }
-                
+
                 showNotification('Ready! Try swiping');
             } catch (error) {
                 updateLoadingText('Error: ' + error.message);
                 document.getElementById('loadingText').style.color = '#ff4444';
             }
         }
-        
+
         function base64ToUint8Array(base64) {
             try {
                 var binaryString = atob(base64);
@@ -720,33 +759,33 @@
                 throw new Error('Invalid base64 PDF data');
             }
         }
-        
+
         async function renderPage(pageNum, shouldCenter = false) {
             if (isRendering || !pdfDoc) return false;
             isRendering = true;
-            
+
             try {
                 var page = await pdfDoc.getPage(pageNum);
                 var viewport = page.getViewport({ scale: scale });
-                
+
                 if (!canvas) return false;
-                
+
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
-                
+
                 var renderContext = {
                     canvasContext: ctx,
                     viewport: viewport
                 };
-                
+
                 await page.render(renderContext).promise;
-                
+
                 if (shouldCenter) {
                     centerCanvas();
                 } else {
                     updateCanvasTransform();
                 }
-                
+
                 return true;
             } catch (error) {
                 return false;
@@ -754,54 +793,54 @@
                 isRendering = false;
             }
         }
-        
+
         function centerCanvas() {
             panOffsetX = 0;
             panOffsetY = 0;
             updateCanvasTransform();
         }
-        
+
         function updateCanvasTransform() {
             var wrapper = document.getElementById('canvasWrapper');
             var transform = 'translate(calc(-50% + ' + panOffsetX + 'px), calc(-50% + ' + panOffsetY + 'px)) translateZ(0)';
             wrapper.style.transform = transform;
             wrapper.style.webkitTransform = transform;
         }
-        
+
         function canPerformAction() {
             var now = Date.now();
             if (now - lastActionTime < config.actionDebounceMs) return false;
             lastActionTime = now;
             return true;
         }
-        
+
         function updateDebugInfo(info) {
             if (!config.debugMode) return;
             document.getElementById('debugInfo').innerHTML = info;
         }
-        
+
         function setupInteraction() {
             var container = document.getElementById('pdfContainer');
-            
+
             // Touch events
             container.addEventListener('touchstart', handleTouchStart, { passive: false });
             container.addEventListener('touchmove', handleTouchMove, { passive: false });
             container.addEventListener('touchend', handleTouchEnd, { passive: false });
             container.addEventListener('touchcancel', handleTouchCancel, { passive: false });
-            
+
             // Pointer events
             container.addEventListener('pointerdown', handlePointerDown);
             container.addEventListener('pointermove', handlePointerMove);
             container.addEventListener('pointerup', handlePointerUp);
             container.addEventListener('pointercancel', handlePointerCancel);
-            
+
             // Tutorial skip
             document.getElementById('tutorialSkip').addEventListener('click', hideTutorial);
         }
-        
+
         function handleTouchStart(e) {
             e.preventDefault();
-            
+
             // Track all touches
             for (var i = 0; i < e.touches.length; i++) {
                 var touch = e.touches[i];
@@ -812,29 +851,29 @@
                     startY: touch.clientY
                 };
             }
-            
+
             // Two-finger gesture detection
             if (e.touches.length === 2) {
                 isTwoFingerGesture = true;
                 twoFingerPanActive = false;
-                
+
                 var touch1 = e.touches[0];
                 var touch2 = e.touches[1];
-                
+
                 var dx = touch2.clientX - touch1.clientX;
                 var dy = touch2.clientY - touch1.clientY;
                 twoFingerStartDistance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // Cancel single-finger gesture
                 if (longPressTimer) {
                     clearTimeout(longPressTimer);
                     longPressTimer = null;
                 }
                 hideLongPressIndicator();
-                
+
                 // Show two-finger indicator
                 showTwoFingerIndicator();
-                
+
                 updateDebugInfo('TWO-FINGER START');
             } else if (e.touches.length === 1) {
                 isTwoFingerGesture = false;
@@ -842,10 +881,10 @@
                 handleGestureStart(touch.clientX, touch.clientY);
             }
         }
-        
+
         function handleTouchMove(e) {
             e.preventDefault();
-            
+
             // Update touch positions
             for (var i = 0; i < e.touches.length; i++) {
                 var touch = e.touches[i];
@@ -854,24 +893,24 @@
                     activeTouches[touch.identifier].y = touch.clientY;
                 }
             }
-            
+
             // Two-finger pan handling
             if (e.touches.length === 2 && isTwoFingerGesture) {
                 var touch1 = e.touches[0];
                 var touch2 = e.touches[1];
-                
+
                 // Calculate center point
                 var centerX = (touch1.clientX + touch2.clientX) / 2;
                 var centerY = (touch1.clientY + touch2.clientY) / 2;
-                
+
                 // Calculate current distance for pinch detection
                 var dx = touch2.clientX - touch1.clientX;
                 var dy = touch2.clientY - touch1.clientY;
                 var currentDistance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // If distance hasn't changed much, it's a pan gesture
                 var distanceChange = Math.abs(currentDistance - twoFingerStartDistance);
-                
+
                 if (distanceChange < 30) { // Not a pinch, it's a pan
                     if (!twoFingerPanActive) {
                         twoFingerPanActive = true;
@@ -886,7 +925,7 @@
                         lastPanX = centerX;
                         lastPanY = centerY;
                     }
-                    
+
                     updateDebugInfo('TWO-FINGER PAN<br>Center: ' + centerX.toFixed(1) + ',' + centerY.toFixed(1));
                 }
             } else if (e.touches.length === 1) {
@@ -894,16 +933,16 @@
                 handleGestureMove(touch.clientX, touch.clientY);
             }
         }
-        
+
         function handleTouchEnd(e) {
             e.preventDefault();
-            
+
             // Remove ended touches
             for (var i = 0; i < e.changedTouches.length; i++) {
                 var touch = e.changedTouches[i];
                 delete activeTouches[touch.identifier];
             }
-            
+
             // Check if two-finger gesture ended
             if (isTwoFingerGesture && Object.keys(activeTouches).length < 2) {
                 isTwoFingerGesture = false;
@@ -912,13 +951,13 @@
                 updateDebugInfo('TWO-FINGER END');
                 return;
             }
-            
+
             if (e.changedTouches.length > 0 && !isTwoFingerGesture) {
                 var touch = e.changedTouches[0];
                 handleGestureEnd(touch.clientX, touch.clientY);
             }
         }
-        
+
         function handleTouchCancel(e) {
             e.preventDefault();
             activeTouches = {};
@@ -927,23 +966,23 @@
             hideTwoFingerIndicator();
             handleGestureCancel();
         }
-        
+
         function handlePointerDown(e) {
             handleGestureStart(e.clientX, e.clientY);
         }
-        
+
         function handlePointerMove(e) {
             handleGestureMove(e.clientX, e.clientY);
         }
-        
+
         function handlePointerUp(e) {
             handleGestureEnd(e.clientX, e.clientY);
         }
-        
+
         function handlePointerCancel(e) {
             handleGestureCancel();
         }
-        
+
         function handleGestureStart(x, y) {
             isPointerDown = true;
             touchStartX = x;
@@ -953,45 +992,49 @@
             lastPanY = y;
             hasMoved = false;
             movementDistance = 0;
-            
+
             updateDebugInfo('START<br>X: ' + x.toFixed(1) + '<br>Y: ' + y.toFixed(1));
-            
+
             // Start long press timer
             if (longPressTimer) clearTimeout(longPressTimer);
-            
+
             if (!isPanMode) {
                 longPressProgress = 0;
                 startLongPressAnimation(x, y);
-                
-                longPressTimer = setTimeout(function() {
+
+                longPressTimer = setTimeout(function () {
                     if (!hasMoved && movementDistance < config.tapMovementThreshold) {
                         togglePanMode();
                     }
                 }, config.longPressTime);
             }
         }
-        
+
         function handleGestureMove(x, y) {
             if (!isPointerDown) return;
-            
+
+              if (isPanMode && !isPanning) {
+        setPanSmoothness(false);
+    }
+
             var deltaX = x - touchStartX;
             var deltaY = y - touchStartY;
             var totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             movementDistance = totalMovement;
-            
+
             updateDebugInfo('MOVE<br>ΔX: ' + deltaX.toFixed(1) + '<br>ΔY: ' + deltaY.toFixed(1) + '<br>Dist: ' + totalMovement.toFixed(1));
-            
+
             // Show gesture trail
             if (totalMovement > 20 && !isTwoFingerGesture) {
                 showGestureTrail(touchStartX, touchStartY, x, y);
-                
+
                 // Show page preview based on direction
                 if (totalMovement > 60) {
                     var deltaX = x - touchStartX;
                     var deltaY = y - touchStartY;
                     var absDeltaX = Math.abs(deltaX);
                     var absDeltaY = Math.abs(deltaY);
-                    
+
                     if (absDeltaX > absDeltaY * 1.2) {
                         // Horizontal swipe - show page preview
                         if (deltaX > 0) {
@@ -1004,7 +1047,7 @@
                     }
                 }
             }
-            
+
             if (totalMovement > config.tapMovementThreshold) {
                 hasMoved = true;
                 if (longPressTimer) {
@@ -1013,7 +1056,7 @@
                     hideLongPressIndicator();
                 }
             }
-            
+
             // Pan mode handling
             if (isPanMode && hasMoved) {
                 var panDeltaX = x - lastPanX;
@@ -1024,15 +1067,19 @@
                 lastPanX = x;
                 lastPanY = y;
                 isPanning = true;
-                
+
                 // Reset pan mode timeout
                 resetPanModeTimeout();
             }
         }
-        
+
         function handleGestureEnd(x, y) {
             if (!isPointerDown) return;
-            
+
+               if (isPanning) {
+        setPanSmoothness(true);
+    }
+
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
@@ -1040,7 +1087,7 @@
             hideLongPressIndicator();
             hideGestureTrail();
             hidePagePreview();
-            
+
             isPointerDown = false;
             var touchEndTime = Date.now();
             var deltaX = x - touchStartX;
@@ -1050,35 +1097,35 @@
             var velocity = distance / Math.max(deltaTime, 1);
             var absDeltaX = Math.abs(deltaX);
             var absDeltaY = Math.abs(deltaY);
-            
+
             updateDebugInfo('END<br>ΔX: ' + deltaX.toFixed(1) + '<br>ΔY: ' + deltaY.toFixed(1) + '<br>Dist: ' + distance.toFixed(1) + '<br>Time: ' + deltaTime + 'ms<br>Vel: ' + velocity.toFixed(3));
-            
+
             // Pan mode handling
             if (isPanning) {
                 isPanning = false;
                 resetPanModeTimeout();
                 return;
             }
-            
+
             // Toggle pan mode with tap
             if (isPanMode && !hasMoved && distance < config.tapMovementThreshold) {
                 togglePanMode();
                 return;
             }
-            
+
             // Check swipe validity
             if (distance < config.swipeThreshold) {
                 return; // Silent fail for short swipes
             }
-            
+
             if (deltaTime > config.swipeTimeLimit) {
                 return; // Silent fail for slow swipes
             }
-            
+
             if (velocity < config.minSwipeVelocity) {
                 return; // Silent fail for low velocity
             }
-            
+
             // Determine direction with more forgiving ratio
             var direction = null;
             if (absDeltaX > absDeltaY) {
@@ -1090,19 +1137,19 @@
                     direction = deltaY > 0 ? 'DOWN' : 'UP';
                 }
             }
-            
+
             if (!direction) {
                 return; // Silent fail for unclear direction
             }
-            
+
             // Check for fast-flipping
             var now = Date.now();
-            var isContinuousSwipe = (now - lastSwipeTime < config.continuousSwipeWindow) && 
-                                   (direction === lastSwipeDirection);
-            
+            var isContinuousSwipe = (now - lastSwipeTime < config.continuousSwipeWindow) &&
+                (direction === lastSwipeDirection);
+
             lastSwipeDirection = direction;
             lastSwipeTime = now;
-            
+
             // Execute gesture
             switch (direction) {
                 case 'LEFT':
@@ -1121,7 +1168,7 @@
                     break;
             }
         }
-        
+
         function handleGestureCancel() {
             if (longPressTimer) {
                 clearTimeout(longPressTimer);
@@ -1133,28 +1180,28 @@
             isPointerDown = false;
             isPanning = false;
         }
-        
+
         function handleSwipeDown() {
             zoomOut();
         }
-        
+
         function handleSwipeUp() {
             zoomIn();
         }
-        
+
         function handleSwipeLeft() {
             nextPage();
         }
-        
+
         function handleSwipeRight() {
             prevPage();
         }
-        
+
         function togglePanMode() {
             isPanMode = !isPanMode;
             var panIndicator = document.getElementById('panModeIndicator');
             var panGrid = document.getElementById('panGrid');
-            
+
             if (isPanMode) {
                 showNotification('Pan Mode ON');
                 panIndicator.classList.add('show');
@@ -1170,11 +1217,11 @@
                 }
             }
         }
-        
+
         function resetPanModeTimeout() {
             if (panModeTimeout) clearTimeout(panModeTimeout);
-            
-            panModeTimeout = setTimeout(function() {
+
+            panModeTimeout = setTimeout(function () {
                 if (isPanMode) {
                     isPanMode = false;
                     document.getElementById('panModeIndicator').classList.remove('show');
@@ -1183,53 +1230,53 @@
                 }
             }, config.panModeTimeout);
         }
-        
+
         // Long press animation
         function startLongPressAnimation(x, y) {
             var indicator = document.getElementById('longPressIndicator');
             var circle = document.querySelector('#longPressProgress circle');
-            
+
             indicator.style.left = x + 'px';
             indicator.style.top = y + 'px';
             indicator.style.transform = 'translate(-50%, -50%)';
             indicator.classList.add('show');
-            
+
             var startTime = Date.now();
-            
+
             function animate() {
                 if (!isPointerDown || hasMoved) {
                     hideLongPressIndicator();
                     return;
                 }
-                
+
                 var elapsed = Date.now() - startTime;
                 var progress = Math.min(elapsed / config.longPressTime, 1);
                 longPressProgress = progress;
-                
+
                 var offset = 226 - (226 * progress);
                 circle.style.strokeDashoffset = offset;
-                
+
                 if (progress < 1) {
                     longPressAnimFrame = requestAnimationFrame(animate);
                 }
             }
-            
+
             longPressAnimFrame = requestAnimationFrame(animate);
         }
-        
+
         function hideLongPressIndicator() {
             var indicator = document.getElementById('longPressIndicator');
             indicator.classList.remove('show');
-            
+
             if (longPressAnimFrame) {
                 cancelAnimationFrame(longPressAnimFrame);
                 longPressAnimFrame = null;
             }
-            
+
             var circle = document.querySelector('#longPressProgress circle');
             circle.style.strokeDashoffset = 226;
         }
-        
+
         // Gesture trail
         function showGestureTrail(startX, startY, endX, endY) {
             var trail = document.getElementById('gestureTrail');
@@ -1237,297 +1284,298 @@
             var deltaY = endY - startY;
             var distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             var angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-            
+
             trail.innerHTML = '<div class="trail-line"></div>';
             var line = trail.querySelector('.trail-line');
-            
+
             line.style.left = startX + 'px';
             line.style.top = startY + 'px';
             line.style.width = distance + 'px';
             line.style.height = '6px';
             line.style.transform = 'rotate(' + angle + 'deg)';
-            
+
             trail.classList.add('show');
         }
-        
+
         function hideGestureTrail() {
             var trail = document.getElementById('gestureTrail');
             trail.classList.remove('show');
         }
-        
+
         // Page preview functionality
         async function showPagePreview(direction, pageNum) {
             if (!pdfDoc || isShowingPreview) return;
             if (pageNum < 1 || pageNum > pdfDoc.numPages) return;
             if (pageNum === currentPage) return;
-            
+            if (isPanMode) return;
             isShowingPreview = true;
             previewDirection = direction;
-            
+
             try {
                 var page = await pdfDoc.getPage(pageNum);
                 var previewScale = scale * 0.3; // 30% of current scale
                 var viewport = page.getViewport({ scale: previewScale });
-                
+
                 previewCanvas.height = viewport.height;
                 previewCanvas.width = viewport.width;
-                
+
                 var renderContext = {
                     canvasContext: previewCtx,
                     viewport: viewport
                 };
-                
+
                 await page.render(renderContext).promise;
-                
+
                 var previewEl = document.getElementById('pagePreview');
                 previewEl.className = 'show ' + direction;
-                
+
             } catch (error) {
                 console.log('Preview render error:', error);
             }
         }
-        
+
         function hidePagePreview() {
             if (!isShowingPreview) return;
-            
+
             var previewEl = document.getElementById('pagePreview');
             previewEl.classList.remove('show');
-            
-            setTimeout(function() {
+
+            setTimeout(function () {
                 previewEl.className = '';
                 isShowingPreview = false;
                 previewDirection = null;
             }, 300);
         }
-        
+
         // Two-finger indicator
         function showTwoFingerIndicator() {
             var indicator = document.getElementById('twoFingerIndicator');
             indicator.classList.add('show');
         }
-        
+
         function hideTwoFingerIndicator() {
             var indicator = document.getElementById('twoFingerIndicator');
             indicator.classList.remove('show');
         }
-        
+
         // Edge flash feedback
         function flashEdge(edge) {
             var flashEl = document.getElementById(edge + 'EdgeFlash');
             flashEl.classList.add('show');
-            
-            setTimeout(function() {
+
+            setTimeout(function () {
                 flashEl.classList.remove('show');
             }, 200);
         }
-        
+
         // Tutorial
         function showTutorial() {
             document.getElementById('tutorialOverlay').classList.add('show');
             setTimeout(hideTutorial, 4000);
         }
-        
+
         function hideTutorial() {
             document.getElementById('tutorialOverlay').classList.remove('show');
             hasSeenTutorial = true;
         }
-        
+
         // Page navigation with large number display
-        window.nextPage = function() {
+        window.nextPage = function () {
             if (!canPerformAction()) return false;
             showGestureIndicator('▶ NEXT');
-            
+
             if (!pdfDoc) {
                 showNotification('PDF not ready');
                 return false;
             }
-            
+
             if (currentPage >= pdfDoc.numPages) {
                 showNotification('Last Page');
                 pulseZoomIndicator();
                 return false;
             }
-            
+
             currentPage++;
             renderPage(currentPage, true);
             updateStatusBar();
             showLargePageNumber();
             return true;
         };
-        
-        window.prevPage = function() {
+
+        window.prevPage = function () {
             if (!canPerformAction()) return false;
             showGestureIndicator('◀ PREV');
-            
+
             if (!pdfDoc) {
                 showNotification('PDF not ready');
                 return false;
             }
-            
+
             if (currentPage <= 1) {
                 showNotification('First Page');
                 pulseZoomIndicator();
                 return false;
             }
-            
+
             currentPage--;
             renderPage(currentPage, true);
             updateStatusBar();
             showLargePageNumber();
             return true;
         };
-        
-        window.zoomIn = function() {
+
+        window.zoomIn = function () {
             if (!canPerformAction()) return false;
             showGestureIndicator('+ ZOOM');
-            
+
             if (!pdfDoc) return false;
-            
+
             var oldScale = scale;
             scale = Math.min(scale * config.zoomInFactor, config.maxZoom);
-            
+
             if (scale === oldScale) {
                 showNotification('Max Zoom');
                 pulseZoomIndicator();
                 return false;
             }
-            
+
             renderPage(currentPage);
             updateStatusBar();
             showNotification('Zoom ' + Math.round(scale * 100) + '%');
             return true;
         };
-        
-        window.zoomOut = function() {
+
+        window.zoomOut = function () {
             if (!canPerformAction()) return false;
             showGestureIndicator('- ZOOM');
-            
+
             if (!pdfDoc) return false;
-            
+
             var oldScale = scale;
             scale = Math.max(scale * config.zoomOutFactor, config.minZoom);
-            
+
             if (scale === oldScale) {
                 showNotification('Min Zoom');
                 pulseZoomIndicator();
                 return false;
             }
-            
+
             renderPage(currentPage);
             updateStatusBar();
             showNotification('Zoom ' + Math.round(scale * 100) + '%');
             return true;
         };
-        
+
         // Quick actions
-        window.fitToWidth = function() {
+        window.fitToWidth = function () {
             if (!pdfDoc || !canvas) return;
-            
+
             var containerWidth = window.innerWidth - 100;
             var pageWidth = canvas.width / scale;
             scale = containerWidth / pageWidth;
             scale = Math.max(config.minZoom, Math.min(scale, config.maxZoom));
-            
+
             renderPage(currentPage, true);
             updateStatusBar();
             showNotification('Fit to Width');
         };
-        
-        window.fitToHeight = function() {
+
+        window.fitToHeight = function () {
             if (!pdfDoc || !canvas) return;
-            
+
             var containerHeight = window.innerHeight - 100;
             var pageHeight = canvas.height / scale;
             scale = containerHeight / pageHeight;
             scale = Math.max(config.minZoom, Math.min(scale, config.maxZoom));
-            
+
             renderPage(currentPage, true);
             updateStatusBar();
             showNotification('Fit to Height');
         };
-        
-        window.resetZoom = function() {
+
+        window.resetZoom = function () {
             scale = 1.0;
             renderPage(currentPage, true);
             updateStatusBar();
             showNotification('Reset to 100%');
         };
-        
-        window.testConnection = function() {
+
+        window.testConnection = function () {
             showNotification('Connected to Spectacles!');
             return true;
         };
-        
+
         // UI helpers
         function updateStatusBar() {
             if (!pdfDoc) return;
             var statusText = 'Page ' + currentPage + ' of ' + pdfDoc.numPages + ' • ' + Math.round(scale * 100) + '%';
             document.getElementById('statusBar').textContent = statusText;
         }
-        
+
         function showNotification(message) {
             var notif = document.getElementById('notification');
             notif.textContent = message;
             notif.classList.add('show');
-            
+
             if (notificationTimeout) clearTimeout(notificationTimeout);
-            notificationTimeout = setTimeout(function() {
+            notificationTimeout = setTimeout(function () {
                 notif.classList.remove('show');
             }, 2000);
         }
-        
+
         function showGestureIndicator(symbol) {
             var indicator = document.getElementById('gestureIndicator');
             indicator.textContent = symbol;
             indicator.classList.add('show');
-            
+
             if (gestureTimeout) clearTimeout(gestureTimeout);
-            gestureTimeout = setTimeout(function() {
+            gestureTimeout = setTimeout(function () {
                 indicator.classList.remove('show');
             }, 600);
         }
-        
+
         function showLargePageNumber() {
             if (!pdfDoc) return;
-            
+
             var pageNum = document.getElementById('largePageNumber');
             pageNum.textContent = currentPage + '/' + pdfDoc.numPages;
             pageNum.classList.add('show');
-            
-            setTimeout(function() {
+
+            setTimeout(function () {
                 pageNum.classList.remove('show');
             }, 800);
         }
-        
+
         function pulseZoomIndicator() {
             var statusBar = document.getElementById('statusBar');
             statusBar.classList.add('zoom-pulse');
-            
-            setTimeout(function() {
+
+            setTimeout(function () {
                 statusBar.classList.remove('zoom-pulse');
             }, 400);
         }
-        
+
         function updateLoadingText(text) {
             document.getElementById('loadingText').textContent = text;
         }
-        
+
         function hideLoadingScreen() {
             var loading = document.getElementById('loadingScreen');
             loading.style.opacity = '0';
-            setTimeout(function() {
+            setTimeout(function () {
                 loading.style.display = 'none';
             }, 300);
         }
-        
+
         // Initialize
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             initCanvas();
             setupInteraction();
-            setTimeout(function() {
+            setTimeout(function () {
                 loadPDF();
             }, 500);
         });
     </script>
 </body>
+
 </html>
