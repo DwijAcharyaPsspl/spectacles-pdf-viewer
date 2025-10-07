@@ -448,6 +448,68 @@
             max-width: 300px;
             line-height: 1.4;
         }
+
+        /* Page preview ghost */
+        #pagePreview {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 120;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+        }
+
+        #pagePreview.show {
+            opacity: 0.6;
+        }
+
+        #pagePreview.left {
+            left: -20%;
+        }
+
+        #pagePreview.right {
+            right: -20%;
+        }
+
+        #pagePreview.show.left {
+            left: 5%;
+        }
+
+        #pagePreview.show.right {
+            right: 5%;
+        }
+
+        #pagePreview canvas {
+            display: block;
+            border-radius: 8px;
+            border: 3px solid rgba(102, 126, 234, 0.6);
+        }
+
+        /* Two-finger indicator */
+        #twoFingerIndicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 150, 255, 0.9);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            pointer-events: none;
+            z-index: 250;
+            box-shadow: 0 4px 20px rgba(0, 150, 255, 0.6);
+        }
+
+        #twoFingerIndicator.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -482,6 +544,14 @@
     
     <!-- Gesture trail -->
     <div id="gestureTrail"></div>
+    
+    <!-- Page preview -->
+    <div id="pagePreview">
+        <canvas id="preview-canvas"></canvas>
+    </div>
+    
+    <!-- Two-finger indicator -->
+    <div id="twoFingerIndicator">Two-Finger Pan Mode</div>
     
     <!-- Quick actions -->
     <div id="quickActions">
@@ -571,9 +641,21 @@
         var panOffsetX = 0;
         var panOffsetY = 0;
         
+        // Two-finger gesture state
+        var activeTouches = {};
+        var isTwoFingerGesture = false;
+        var twoFingerPanActive = false;
+        var twoFingerStartDistance = 0;
+        
         // Fast-flipping state
         var lastSwipeDirection = null;
         var lastSwipeTime = 0;
+        
+        // Page preview state
+        var previewCanvas = null;
+        var previewCtx = null;
+        var previewDirection = null;
+        var isShowingPreview = false;
         
         // Tutorial state
         var hasSeenTutorial = false;
@@ -581,6 +663,11 @@
         function initCanvas() {
             canvas = document.getElementById('pdf-canvas');
             ctx = canvas.getContext('2d');
+            
+            // Initialize preview canvas
+            previewCanvas = document.getElementById('preview-canvas');
+            previewCtx = previewCanvas.getContext('2d');
+            
             console.log('Canvas initialized');
         }
         
@@ -609,7 +696,7 @@
                 updateStatusBar();
                 hideLoadingScreen();
                 
-                // Show tutorial on first load
+                // Show tutorial on first load and hide it after 4 second
                 if (!hasSeenTutorial) {
                     setTimeout(showTutorial, 500);
                 }
@@ -714,7 +801,43 @@
         
         function handleTouchStart(e) {
             e.preventDefault();
-            if (e.touches.length > 0) {
+            
+            // Track all touches
+            for (var i = 0; i < e.touches.length; i++) {
+                var touch = e.touches[i];
+                activeTouches[touch.identifier] = {
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    startX: touch.clientX,
+                    startY: touch.clientY
+                };
+            }
+            
+            // Two-finger gesture detection
+            if (e.touches.length === 2) {
+                isTwoFingerGesture = true;
+                twoFingerPanActive = false;
+                
+                var touch1 = e.touches[0];
+                var touch2 = e.touches[1];
+                
+                var dx = touch2.clientX - touch1.clientX;
+                var dy = touch2.clientY - touch1.clientY;
+                twoFingerStartDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Cancel single-finger gesture
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                hideLongPressIndicator();
+                
+                // Show two-finger indicator
+                showTwoFingerIndicator();
+                
+                updateDebugInfo('TWO-FINGER START');
+            } else if (e.touches.length === 1) {
+                isTwoFingerGesture = false;
                 var touch = e.touches[0];
                 handleGestureStart(touch.clientX, touch.clientY);
             }
@@ -722,7 +845,51 @@
         
         function handleTouchMove(e) {
             e.preventDefault();
-            if (e.touches.length > 0) {
+            
+            // Update touch positions
+            for (var i = 0; i < e.touches.length; i++) {
+                var touch = e.touches[i];
+                if (activeTouches[touch.identifier]) {
+                    activeTouches[touch.identifier].x = touch.clientX;
+                    activeTouches[touch.identifier].y = touch.clientY;
+                }
+            }
+            
+            // Two-finger pan handling
+            if (e.touches.length === 2 && isTwoFingerGesture) {
+                var touch1 = e.touches[0];
+                var touch2 = e.touches[1];
+                
+                // Calculate center point
+                var centerX = (touch1.clientX + touch2.clientX) / 2;
+                var centerY = (touch1.clientY + touch2.clientY) / 2;
+                
+                // Calculate current distance for pinch detection
+                var dx = touch2.clientX - touch1.clientX;
+                var dy = touch2.clientY - touch1.clientY;
+                var currentDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                // If distance hasn't changed much, it's a pan gesture
+                var distanceChange = Math.abs(currentDistance - twoFingerStartDistance);
+                
+                if (distanceChange < 30) { // Not a pinch, it's a pan
+                    if (!twoFingerPanActive) {
+                        twoFingerPanActive = true;
+                        lastPanX = centerX;
+                        lastPanY = centerY;
+                    } else {
+                        var panDeltaX = centerX - lastPanX;
+                        var panDeltaY = centerY - lastPanY;
+                        panOffsetX += panDeltaX;
+                        panOffsetY += panDeltaY;
+                        updateCanvasTransform();
+                        lastPanX = centerX;
+                        lastPanY = centerY;
+                    }
+                    
+                    updateDebugInfo('TWO-FINGER PAN<br>Center: ' + centerX.toFixed(1) + ',' + centerY.toFixed(1));
+                }
+            } else if (e.touches.length === 1) {
                 var touch = e.touches[0];
                 handleGestureMove(touch.clientX, touch.clientY);
             }
@@ -730,7 +897,23 @@
         
         function handleTouchEnd(e) {
             e.preventDefault();
-            if (e.changedTouches.length > 0) {
+            
+            // Remove ended touches
+            for (var i = 0; i < e.changedTouches.length; i++) {
+                var touch = e.changedTouches[i];
+                delete activeTouches[touch.identifier];
+            }
+            
+            // Check if two-finger gesture ended
+            if (isTwoFingerGesture && Object.keys(activeTouches).length < 2) {
+                isTwoFingerGesture = false;
+                twoFingerPanActive = false;
+                hideTwoFingerIndicator();
+                updateDebugInfo('TWO-FINGER END');
+                return;
+            }
+            
+            if (e.changedTouches.length > 0 && !isTwoFingerGesture) {
                 var touch = e.changedTouches[0];
                 handleGestureEnd(touch.clientX, touch.clientY);
             }
@@ -738,6 +921,10 @@
         
         function handleTouchCancel(e) {
             e.preventDefault();
+            activeTouches = {};
+            isTwoFingerGesture = false;
+            twoFingerPanActive = false;
+            hideTwoFingerIndicator();
             handleGestureCancel();
         }
         
@@ -795,8 +982,27 @@
             updateDebugInfo('MOVE<br>ΔX: ' + deltaX.toFixed(1) + '<br>ΔY: ' + deltaY.toFixed(1) + '<br>Dist: ' + totalMovement.toFixed(1));
             
             // Show gesture trail
-            if (totalMovement > 20) {
+            if (totalMovement > 20 && !isTwoFingerGesture) {
                 showGestureTrail(touchStartX, touchStartY, x, y);
+                
+                // Show page preview based on direction
+                if (totalMovement > 60) {
+                    var deltaX = x - touchStartX;
+                    var deltaY = y - touchStartY;
+                    var absDeltaX = Math.abs(deltaX);
+                    var absDeltaY = Math.abs(deltaY);
+                    
+                    if (absDeltaX > absDeltaY * 1.2) {
+                        // Horizontal swipe - show page preview
+                        if (deltaX > 0) {
+                            // Swiping right - show previous page
+                            showPagePreview('right', currentPage - 1);
+                        } else {
+                            // Swiping left - show next page
+                            showPagePreview('left', currentPage + 1);
+                        }
+                    }
+                }
             }
             
             if (totalMovement > config.tapMovementThreshold) {
@@ -833,6 +1039,7 @@
             }
             hideLongPressIndicator();
             hideGestureTrail();
+            hidePagePreview();
             
             isPointerDown = false;
             var touchEndTime = Date.now();
@@ -922,6 +1129,7 @@
             }
             hideLongPressIndicator();
             hideGestureTrail();
+            hidePagePreview();
             isPointerDown = false;
             isPanning = false;
         }
@@ -1047,6 +1255,62 @@
             trail.classList.remove('show');
         }
         
+        // Page preview functionality
+        async function showPagePreview(direction, pageNum) {
+            if (!pdfDoc || isShowingPreview) return;
+            if (pageNum < 1 || pageNum > pdfDoc.numPages) return;
+            if (pageNum === currentPage) return;
+            
+            isShowingPreview = true;
+            previewDirection = direction;
+            
+            try {
+                var page = await pdfDoc.getPage(pageNum);
+                var previewScale = scale * 0.3; // 30% of current scale
+                var viewport = page.getViewport({ scale: previewScale });
+                
+                previewCanvas.height = viewport.height;
+                previewCanvas.width = viewport.width;
+                
+                var renderContext = {
+                    canvasContext: previewCtx,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                
+                var previewEl = document.getElementById('pagePreview');
+                previewEl.className = 'show ' + direction;
+                
+            } catch (error) {
+                console.log('Preview render error:', error);
+            }
+        }
+        
+        function hidePagePreview() {
+            if (!isShowingPreview) return;
+            
+            var previewEl = document.getElementById('pagePreview');
+            previewEl.classList.remove('show');
+            
+            setTimeout(function() {
+                previewEl.className = '';
+                isShowingPreview = false;
+                previewDirection = null;
+            }, 300);
+        }
+        
+        // Two-finger indicator
+        function showTwoFingerIndicator() {
+            var indicator = document.getElementById('twoFingerIndicator');
+            indicator.classList.add('show');
+        }
+        
+        function hideTwoFingerIndicator() {
+            var indicator = document.getElementById('twoFingerIndicator');
+            indicator.classList.remove('show');
+        }
+        
         // Edge flash feedback
         function flashEdge(edge) {
             var flashEl = document.getElementById(edge + 'EdgeFlash');
@@ -1060,6 +1324,7 @@
         // Tutorial
         function showTutorial() {
             document.getElementById('tutorialOverlay').classList.add('show');
+            setTimeout(hideTutorial, 4000);
         }
         
         function hideTutorial() {
